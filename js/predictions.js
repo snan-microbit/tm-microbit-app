@@ -21,7 +21,6 @@ async function setupWebcam() {
         window.requestAnimationFrame(loopImage);
         
         document.getElementById('webcam-container').appendChild(webcam.canvas);
-        document.getElementById('predictionCard').style.display = 'block';
     } catch (error) {
         console.error('Error setting up webcam:', error);
         showStatus('modelStatus', 'Error al acceder a la cámara. Verifica los permisos.', 'error');
@@ -52,8 +51,6 @@ async function setupPoseWebcam() {
         const container = document.getElementById('pose-container');
         container.appendChild(webcam.canvas);
         container.appendChild(canvas);
-        
-        document.getElementById('predictionCard').style.display = 'block';
     } catch (error) {
         console.error('Error setting up pose webcam:', error);
         showStatus('modelStatus', 'Error al acceder a la cámara. Verifica los permisos.', 'error');
@@ -180,4 +177,20 @@ function stopPredictions() {
  */
 function isPredicting() {
     return isRunning;
+}
+
+/**
+ * Start predicting (called by navigation)
+ */
+function startPredicting() {
+    if (!isRunning && webcam) {
+        isRunning = true;
+        const modelType = getModelType();
+        
+        if (modelType === 'image') {
+            window.requestAnimationFrame(loopImage);
+        } else if (modelType === 'pose') {
+            window.requestAnimationFrame(loopPose);
+        }
+    }
 }
