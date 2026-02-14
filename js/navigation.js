@@ -39,10 +39,8 @@ function onScreenEnter(screenId) {
         // Update model info in compact header
         updateCompactModelInfo();
         
-        // Start predictions if webcam is ready
-        if (webcam && !isPredicting()) {
-            startPredicting();
-        }
+        // Don't start predicting here - it's already running from setupWebcam
+        // Just ensure the loop continues if it was stopped
     }
 }
 
