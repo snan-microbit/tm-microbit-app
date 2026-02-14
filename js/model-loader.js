@@ -102,7 +102,11 @@ async function loadModel() {
 
         showStatus('modelStatus', `✅ Modelo de ${modelType} cargado correctamente`, 'success');
         showModelInfo();
-        document.getElementById('connectBtn').disabled = false;
+        
+        // Navegar automáticamente a la pantalla de procesamiento
+        setTimeout(() => {
+            goToProcessing();
+        }, 800);
         
     } catch (error) {
         console.error('Error al cargar el modelo:', error);
