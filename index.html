@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Conecta modelos de Teachable Machine con micro:bit vía Bluetooth">
+    <meta name="theme-color" content="#4C52AF">
+    <title>Teachable Machine + micro:bit</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- TensorFlow.js and Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@latest/dist/teachablemachine-pose.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🤖 Teachable Machine + micro:bit</h1>
+            <p>Conecta tu modelo de ML con tu micro:bit</p>
+        </header>
+
+        <!-- Step 1: Load Model -->
+        <section class="card">
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">1</span>
+                    Carga tu modelo de Teachable Machine
+                </div>
+                <input 
+                    type="text" 
+                    id="modelURL" 
+                    placeholder="https://teachablemachine.withgoogle.com/models/TU_MODELO_AQUI/"
+                    aria-label="URL del modelo de Teachable Machine"
+                >
+                <p class="help-text">💡 Acepta cualquier URL de Teachable Machine (imagen, audio o poses)</p>
+                <button class="button button-primary" id="loadModelBtn" aria-label="Cargar modelo">
+                    Cargar Modelo
+                </button>
+                <div id="modelStatus" role="status" aria-live="polite"></div>
+                <div id="modelInfo"></div>
+            </div>
+        </section>
+
+        <!-- Step 2: Connect micro:bit -->
+        <section class="card">
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">2</span>
+                    Conecta tu micro:bit
+                </div>
+                <button class="button button-success" id="connectBtn" disabled aria-label="Conectar micro:bit">
+                    🔗 Conectar micro:bit
+                </button>
+                <button class="button button-danger" id="disconnectBtn" style="display: none;" aria-label="Desconectar micro:bit">
+                    ❌ Desconectar
+                </button>
+                <div id="bluetoothStatus" role="status" aria-live="polite"></div>
+                <div class="bluetooth-info" style="display: none;" id="bluetoothHelp">
+                    <strong>⚡ Importante:</strong> Asegúrate de que tu micro:bit tenga un programa que pueda recibir datos por Bluetooth (UART service).
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 3: Predictions -->
+        <section class="card" id="predictionCard" style="display: none;">
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">3</span>
+                    Predicciones en tiempo real
+                </div>
+                <div id="webcam-container"></div>
+                <div id="audio-container"></div>
+                <div id="pose-container"></div>
+                <div class="prediction-box" id="predictions"></div>
+                <div id="sentMessages"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/model-loader.js"></script>
+    <script src="js/bluetooth.js"></script>
+    <script src="js/predictions.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
