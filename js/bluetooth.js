@@ -46,6 +46,7 @@ async function connectMicrobit() {
         // Update UI
         document.getElementById('connectBtn').style.display = 'none';
         document.getElementById('disconnectBtn').style.display = 'inline-block';
+        document.getElementById('testBtn').style.display = 'inline-block';
         document.getElementById('bluetoothHelp').style.display = 'block';
 
         // Handle disconnection
@@ -88,6 +89,7 @@ function onDisconnected() {
     showStatus('bluetoothStatus', 'Desconectado', 'info');
     document.getElementById('connectBtn').style.display = 'inline-block';
     document.getElementById('disconnectBtn').style.display = 'none';
+    document.getElementById('testBtn').style.display = 'none';
 }
 
 /**
@@ -113,26 +115,33 @@ async function sendToMicrobit(className, confidence) {
         const encoder = new TextEncoder();
         const data = encoder.encode(message);
         
+        // Logs de depuración
+        console.log('📤 Enviando:', message.trim());
+        console.log('📊 Bytes:', Array.from(data));
+        console.log('📏 Longitud:', data.length, 'bytes');
+        
         // Verificar que el mensaje no sea muy largo (máximo 20 bytes para BLE)
         if (data.length > 20) {
-            console.warn('Mensaje muy largo, truncando:', message);
+            console.warn('⚠️ Mensaje muy largo, truncando:', message);
             const truncated = message.substring(0, 17) + '\n';
             const truncatedData = encoder.encode(truncated);
+            console.log('✂️ Truncado a:', truncated.trim(), 'Bytes:', Array.from(truncatedData));
             await rxCharacteristic.writeValueWithoutResponse(truncatedData);
         } else {
             await rxCharacteristic.writeValueWithoutResponse(data);
+            console.log('✅ Mensaje enviado correctamente');
         }
         
         // Show sent message
         const messagesDiv = document.getElementById('sentMessages');
         messagesDiv.innerHTML = `
             <div class="sent-message">
-                📤 Enviado: ${message.trim()}
+                📤 Enviado: ${message.trim()} (${data.length} bytes)
             </div>
         `;
         
     } catch (error) {
-        console.error('Error al enviar datos:', error);
+        console.error('❌ Error al enviar datos:', error);
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         showStatus('bluetoothStatus', '⚠️ Error al enviar datos: ' + error.message, 'error');
