@@ -45,6 +45,9 @@ async function connectMicrobit() {
 
         showStatus('bluetoothStatus', '✅ Conectado a ' + microbitDevice.name, 'success');
         
+        // Update connection badge
+        updateConnectionBadge(true, microbitDevice.name);
+        
         // Update UI
         document.getElementById('connectBtn').style.display = 'none';
         document.getElementById('disconnectBtn').style.display = 'inline-block';
@@ -89,6 +92,8 @@ function onDisconnected() {
     microbitDevice = null;
     
     showStatus('bluetoothStatus', 'Desconectado', 'info');
+    updateConnectionBadge(false);
+    
     document.getElementById('connectBtn').style.display = 'inline-block';
     document.getElementById('disconnectBtn').style.display = 'none';
     document.getElementById('testBtn').style.display = 'none';
@@ -173,4 +178,20 @@ function getConnectionStatus() {
         connected: isConnected(),
         deviceName: microbitDevice ? microbitDevice.name : null
     };
+}
+
+/**
+ * Update connection badge in UI
+ */
+function updateConnectionBadge(connected, deviceName = null) {
+    const badge = document.getElementById('connectionStatusBadge');
+    if (!badge) return;
+    
+    if (connected) {
+        badge.className = 'status-badge connected';
+        badge.textContent = deviceName ? `Conectado: ${deviceName}` : 'Conectado';
+    } else {
+        badge.className = 'status-badge disconnected';
+        badge.textContent = 'Desconectado';
+    }
 }
