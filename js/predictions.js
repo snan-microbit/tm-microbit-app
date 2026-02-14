@@ -61,7 +61,7 @@ async function setupPoseWebcam() {
  * Main loop for image predictions
  */
 async function loopImage() {
-    if (!isRunning) return;
+    if (!isRunning || !webcam) return;
     
     webcam.update();
     await predictImage();
@@ -72,7 +72,7 @@ async function loopImage() {
  * Main loop for pose predictions
  */
 async function loopPose() {
-    if (!isRunning) return;
+    if (!isRunning || !webcam) return;
     
     webcam.update();
     await predictPose();
@@ -84,7 +84,7 @@ async function loopPose() {
  */
 async function predictImage() {
     const model = getModel();
-    if (!model) return;
+    if (!model || !webcam || !webcam.canvas) return;
     
     const prediction = await model.predict(webcam.canvas);
     displayPredictions(prediction);
@@ -95,7 +95,7 @@ async function predictImage() {
  */
 async function predictPose() {
     const model = getModel();
-    if (!model) return;
+    if (!model || !webcam || !webcam.canvas) return;
     
     const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
     const prediction = await model.predict(posenetOutput);
