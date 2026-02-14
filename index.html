@@ -20,71 +20,100 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>🤖 Teachable Machine + micro:bit</h1>
-            <p>Conecta tu modelo de ML con tu micro:bit</p>
-        </header>
+        <!-- SCREEN 1: HOME - Load Model -->
+        <div id="screen-home" class="screen active">
+            <header class="header">
+                <h1>🤖 Teachable Machine + micro:bit</h1>
+                <p>Conecta tu modelo de ML con tu micro:bit</p>
+            </header>
 
-        <!-- Step 1: Load Model -->
-        <section class="card">
-            <div class="step">
-                <div class="step-title">
-                    <span class="step-number">1</span>
-                    Carga tu modelo de Teachable Machine
+            <section class="card">
+                <div class="step">
+                    <div class="step-title">
+                        <span class="step-number">1</span>
+                        Carga tu modelo de Teachable Machine
+                    </div>
+                    <input 
+                        type="text" 
+                        id="modelURL" 
+                        placeholder="https://teachablemachine.withgoogle.com/models/TU_MODELO_AQUI/"
+                        aria-label="URL del modelo de Teachable Machine"
+                    >
+                    <p class="help-text">💡 Acepta cualquier URL de Teachable Machine (imagen, audio o poses)</p>
+                    <button class="button button-primary" id="loadModelBtn" aria-label="Cargar modelo">
+                        Cargar Modelo
+                    </button>
+                    <div id="modelStatus" role="status" aria-live="polite"></div>
                 </div>
-                <input 
-                    type="text" 
-                    id="modelURL" 
-                    placeholder="https://teachablemachine.withgoogle.com/models/TU_MODELO_AQUI/"
-                    aria-label="URL del modelo de Teachable Machine"
-                >
-                <p class="help-text">💡 Acepta cualquier URL de Teachable Machine (imagen, audio o poses)</p>
-                <button class="button button-primary" id="loadModelBtn" aria-label="Cargar modelo">
-                    Cargar Modelo
-                </button>
-                <div id="modelStatus" role="status" aria-live="polite"></div>
-                <div id="modelInfo"></div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Step 2: Connect micro:bit -->
-        <section class="card">
-            <div class="step">
-                <div class="step-title">
-                    <span class="step-number">2</span>
-                    Conecta tu micro:bit
-                </div>
-                <button class="button button-success" id="connectBtn" disabled aria-label="Conectar micro:bit">
-                    🔗 Conectar micro:bit
-                </button>
-                <button class="button button-danger" id="disconnectBtn" style="display: none;" aria-label="Desconectar micro:bit">
-                    ❌ Desconectar
-                </button>
-                <button class="button button-primary" id="testBtn" style="display: none;" aria-label="Enviar mensaje de prueba">
-                    🧪 Enviar TEST
-                </button>
-                <div id="bluetoothStatus" role="status" aria-live="polite"></div>
-                <div class="bluetooth-info" style="display: none;" id="bluetoothHelp">
-                    <strong>⚡ Importante:</strong> Asegúrate de que tu micro:bit tenga un programa que pueda recibir datos por Bluetooth (UART service).
-                </div>
-            </div>
-        </section>
+            <section class="card info-card">
+                <h3>📋 ¿Cómo usar esta app?</h3>
+                <ol>
+                    <li>Entrena tu modelo en <a href="https://teachablemachine.withgoogle.com/" target="_blank">Teachable Machine</a></li>
+                    <li>Exporta y sube tu modelo ("Upload my model")</li>
+                    <li>Copia el link y pégalo arriba</li>
+                    <li>Conecta tu micro:bit vía Bluetooth</li>
+                    <li>¡Tu micro:bit recibirá las predicciones!</li>
+                </ol>
+            </section>
+        </div>
 
-        <!-- Step 3: Predictions -->
-        <section class="card" id="predictionCard" style="display: none;">
-            <div class="step">
-                <div class="step-title">
-                    <span class="step-number">3</span>
-                    Predicciones en tiempo real
+        <!-- SCREEN 2: PROCESSING - Model Running -->
+        <div id="screen-processing" class="screen">
+            <header class="header-compact">
+                <div class="header-content">
+                    <h2>🎥 Predicciones en tiempo real</h2>
+                    <button class="button button-small button-secondary" id="changeModelBtn">
+                        🔄 Cambiar modelo
+                    </button>
                 </div>
+                <div id="modelInfoCompact" class="model-info-compact"></div>
+            </header>
+
+            <section class="card">
+                <!-- Webcam / Pose Container -->
                 <div id="webcam-container"></div>
                 <div id="audio-container"></div>
                 <div id="pose-container"></div>
+
+                <!-- Predictions Display -->
                 <div class="prediction-box" id="predictions"></div>
+            </section>
+
+            <!-- Bluetooth Connection Card -->
+            <section class="card connection-card">
+                <div class="connection-header">
+                    <div class="connection-title">
+                        <span class="step-number">2</span>
+                        <h3>Conexión micro:bit</h3>
+                    </div>
+                    <div id="connectionStatusBadge" class="status-badge disconnected">
+                        Desconectado
+                    </div>
+                </div>
+
+                <div class="connection-actions">
+                    <button class="button button-success" id="connectBtn" aria-label="Conectar micro:bit">
+                        🔗 Conectar micro:bit
+                    </button>
+                    <button class="button button-danger" id="disconnectBtn" style="display: none;" aria-label="Desconectar micro:bit">
+                        ❌ Desconectar
+                    </button>
+                    <button class="button button-primary" id="testBtn" style="display: none;" aria-label="Enviar mensaje de prueba">
+                        🧪 Enviar TEST
+                    </button>
+                </div>
+
+                <div id="bluetoothStatus" role="status" aria-live="polite"></div>
+                
+                <div class="bluetooth-info" style="display: none;" id="bluetoothHelp">
+                    <strong>⚡ Importante:</strong> Asegúrate de que tu micro:bit tenga un programa que pueda recibir datos por Bluetooth (UART service).
+                </div>
+
                 <div id="sentMessages"></div>
-            </div>
-        </section>
+            </section>
+        </div>
     </div>
 
     <!-- Scripts -->
@@ -92,6 +121,7 @@
     <script src="js/bluetooth.js"></script>
     <script src="js/predictions.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/navigation.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
