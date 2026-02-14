@@ -43,6 +43,17 @@ function setupEventListeners() {
         disconnectBtn.addEventListener('click', disconnectMicrobit);
     }
     
+    // Test button - send manual message
+    const testBtn = document.getElementById('testBtn');
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            if (isConnected()) {
+                await sendToMicrobit('TEST', 99);
+                console.log('🧪 Mensaje de prueba enviado: TEST#99');
+            }
+        });
+    }
+    
     // Allow Enter key to load model
     const modelURLInput = document.getElementById('modelURL');
     if (modelURLInput) {
