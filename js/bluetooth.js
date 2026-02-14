@@ -6,6 +6,8 @@ let uartService = null;
 let rxCharacteristic = null;  // Para escribir AL micro:bit
 let lastSentClass = '';
 let lastSentConfidence = 0;
+let lastSendTime = 0;  // Timestamp del último envío
+const MIN_SEND_INTERVAL = 500;  // Mínimo 500ms entre envíos (2 por segundo)
 
 // UART Service UUID for micro:bit
 const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
@@ -100,14 +102,22 @@ async function sendToMicrobit(className, confidence) {
     if (!rxCharacteristic) return;
     
     const confidenceRounded = Math.round(confidence);
+    const currentTime = Date.now();
     
-    // Only send if there's a significant change
+    // Throttling: verificar tiempo transcurrido
+    if (currentTime - lastSendTime < MIN_SEND_INTERVAL) {
+        // Demasiado pronto, ignorar este envío
+        return;
+    }
+    
+    // Solo enviar si hay un cambio significativo
     if (className === lastSentClass && Math.abs(confidenceRounded - lastSentConfidence) < 5) {
         return;
     }
     
     lastSentClass = className;
     lastSentConfidence = confidenceRounded;
+    lastSendTime = currentTime;  // Actualizar timestamp
     
     try {
         // Format: "CLASS#CONFIDENCE\n" (usando # como separador)
