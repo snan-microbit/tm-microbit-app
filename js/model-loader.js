@@ -101,7 +101,6 @@ async function loadModel() {
         }
 
         showStatus('modelStatus', `✅ Modelo de ${modelType} cargado correctamente`, 'success');
-        showModelInfo();
         
         // Navegar automáticamente a la pantalla de procesamiento
         setTimeout(() => {
@@ -119,6 +118,8 @@ async function loadModel() {
  */
 function showModelInfo() {
     const info = document.getElementById('modelInfo');
+    if (!info) return; // Element doesn't exist, skip
+    
     info.innerHTML = `
         <div class="model-info">
             <h3>📊 Información del modelo</h3>
