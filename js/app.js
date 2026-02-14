@@ -54,6 +54,12 @@ function setupEventListeners() {
         });
     }
     
+    // Change model button
+    const changeModelBtn = document.getElementById('changeModelBtn');
+    if (changeModelBtn) {
+        changeModelBtn.addEventListener('click', goHome);
+    }
+    
     // Allow Enter key to load model
     const modelURLInput = document.getElementById('modelURL');
     if (modelURLInput) {
