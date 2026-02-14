@@ -3,13 +3,16 @@
 
 let microbitDevice = null;
 let uartService = null;
-let txCharacteristic = null;
+let rxCharacteristic = null;  // Para escribir AL micro:bit
 let lastSentClass = '';
 let lastSentConfidence = 0;
 
 // UART Service UUID for micro:bit
 const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const UART_TX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+// RX Characteristic - for writing TO micro:bit (from web perspective)
+const UART_RX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+// TX Characteristic - for reading FROM micro:bit (not used in this app)
+const UART_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
 /**
  * Connect to micro:bit via Bluetooth
@@ -30,8 +33,13 @@ async function connectMicrobit() {
         // Get UART service
         uartService = await server.getPrimaryService(UART_SERVICE_UUID);
         
-        // Get TX characteristic (for writing data)
-        txCharacteristic = await uartService.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
+        // Get RX characteristic (for writing data TO micro:bit)
+        rxCharacteristic = await uartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+        
+        // Log characteristic properties for debugging
+        console.log('RX Characteristic properties:', rxCharacteristic.properties);
+        console.log('Can write:', rxCharacteristic.properties.write);
+        console.log('Can writeWithoutResponse:', rxCharacteristic.properties.writeWithoutResponse);
 
         showStatus('bluetoothStatus', '✅ Conectado a ' + microbitDevice.name, 'success');
         
@@ -74,7 +82,7 @@ function disconnectMicrobit() {
  */
 function onDisconnected() {
     uartService = null;
-    txCharacteristic = null;
+    rxCharacteristic = null;
     microbitDevice = null;
     
     showStatus('bluetoothStatus', 'Desconectado', 'info');
@@ -84,10 +92,10 @@ function onDisconnected() {
 
 /**
  * Send data to micro:bit
- * Format: "CLASS:CONFIDENCE\n"
+ * Format: "CLASS#CONFIDENCE\n"
  */
 async function sendToMicrobit(className, confidence) {
-    if (!txCharacteristic) return;
+    if (!rxCharacteristic) return;
     
     const confidenceRounded = Math.round(confidence);
     
@@ -100,12 +108,20 @@ async function sendToMicrobit(className, confidence) {
     lastSentConfidence = confidenceRounded;
     
     try {
-        // Format: "CLASS:CONFIDENCE\n"
-        const message = `${className}:${confidenceRounded}\n`;
+        // Format: "CLASS#CONFIDENCE\n" (usando # como separador)
+        const message = `${className}#${confidenceRounded}\n`;
         const encoder = new TextEncoder();
         const data = encoder.encode(message);
         
-        await txCharacteristic.writeValue(data);
+        // Verificar que el mensaje no sea muy largo (máximo 20 bytes para BLE)
+        if (data.length > 20) {
+            console.warn('Mensaje muy largo, truncando:', message);
+            const truncated = message.substring(0, 17) + '\n';
+            const truncatedData = encoder.encode(truncated);
+            await rxCharacteristic.writeValueWithoutResponse(truncatedData);
+        } else {
+            await rxCharacteristic.writeValueWithoutResponse(data);
+        }
         
         // Show sent message
         const messagesDiv = document.getElementById('sentMessages');
@@ -117,7 +133,9 @@ async function sendToMicrobit(className, confidence) {
         
     } catch (error) {
         console.error('Error al enviar datos:', error);
-        showStatus('bluetoothStatus', '⚠️ Error al enviar datos', 'error');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        showStatus('bluetoothStatus', '⚠️ Error al enviar datos: ' + error.message, 'error');
     }
 }
 
@@ -125,7 +143,7 @@ async function sendToMicrobit(className, confidence) {
  * Check if connected to micro:bit
  */
 function isConnected() {
-    return txCharacteristic !== null;
+    return rxCharacteristic !== null;
 }
 
 /**
