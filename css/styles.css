@@ -19,6 +19,27 @@ body {
     margin: 0 auto;
 }
 
+/* Screen Management */
+.screen {
+    display: none;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.screen.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Header */
 .header {
     text-align: center;
@@ -35,6 +56,144 @@ body {
 .header p {
     font-size: 1.1em;
     opacity: 0.95;
+}
+
+/* Compact Header (for processing screen) */
+.header-compact {
+    background: white;
+    border-radius: 20px;
+    padding: 20px 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.header-compact h2 {
+    color: #667eea;
+    font-size: 1.5em;
+    margin: 0;
+}
+
+.model-info-compact {
+    background: #f8fafc;
+    padding: 12px 15px;
+    border-radius: 10px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.model-info-compact strong {
+    color: #333;
+}
+
+/* Info Card */
+.info-card {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.info-card h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.info-card ol {
+    margin-left: 20px;
+    line-height: 1.8;
+}
+
+.info-card ol li {
+    margin-bottom: 8px;
+}
+
+.info-card a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.info-card a:hover {
+    text-decoration: underline;
+}
+
+/* Connection Card */
+.connection-card {
+    background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+    border: 2px solid #e0e7ff;
+}
+
+.connection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.connection-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.connection-title h3 {
+    color: #667eea;
+    font-size: 1.3em;
+    margin: 0;
+}
+
+.connection-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-badge::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-badge.connected {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.connected::before {
+    background: #10b981;
+    animation: pulse 2s infinite;
+}
+
+.status-badge.disconnected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.disconnected::before {
+    background: #ef4444;
 }
 
 /* Cards */
@@ -143,6 +302,20 @@ input[type="text"]:focus {
 
 .button-danger:hover:not(:disabled) {
     background: #dc2626;
+}
+
+.button-secondary {
+    background: #64748b;
+    color: white;
+}
+
+.button-secondary:hover:not(:disabled) {
+    background: #475569;
+}
+
+.button-small {
+    padding: 8px 20px;
+    font-size: 0.9em;
 }
 
 /* Status Messages */
@@ -298,6 +471,10 @@ input[type="text"]:focus {
         font-size: 2em;
     }
     
+    .header-compact h2 {
+        font-size: 1.3em;
+    }
+    
     .card {
         padding: 20px;
     }
@@ -306,5 +483,24 @@ input[type="text"]:focus {
         width: 100%;
         margin-bottom: 10px;
         margin-right: 0;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .connection-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .connection-actions {
+        width: 100%;
+    }
+    
+    .connection-actions .button {
+        flex: 1;
+        min-width: 0;
     }
 }
