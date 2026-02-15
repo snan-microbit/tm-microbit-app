@@ -11,7 +11,7 @@ let lastSendTime = 0;
 let readyToSend = true;  // Flag para control de flujo
 
 // Configuración de flujo
-let FLOW_CONTROL_ENABLED = false;  // true para Opción 2, false para Opción 1
+let FLOW_CONTROL_ENABLED = true;  // true por defecto (modo controlado)
 const MIN_SEND_INTERVAL = 0;  // 0 = sin límite de velocidad
 
 // UART Service UUID for micro:bit
@@ -92,7 +92,6 @@ async function connectMicrobit() {
         document.getElementById('disconnectBtn').style.display = 'inline-block';
         document.getElementById('testBtn').style.display = 'inline-block';
         document.getElementById('bluetoothHelp').style.display = 'block';
-        document.getElementById('flowControlSettings').style.display = 'block';
 
         // Handle disconnection
         microbitDevice.addEventListener('gattserverdisconnected', onDisconnected);

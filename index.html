@@ -6,8 +6,6 @@
     <meta name="description" content="Conecta modelos de Teachable Machine con micro:bit vía Bluetooth">
     <meta name="theme-color" content="#4C52AF">
     <title>Teachable Machine + micro:bit</title>
-
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -95,6 +93,27 @@
                     </div>
                 </div>
 
+                <!-- Flow Control Settings - ANTES de conectar -->
+                <div class="flow-control-settings" id="flowControlSettings">
+                    <h4>⚙️ Modo de envío de datos</h4>
+                    <div class="flow-options">
+                        <label class="radio-option">
+                            <input type="radio" name="flowMode" value="max">
+                            <div class="option-content">
+                                <strong>🚀 Flujo máximo</strong>
+                                <p>Envía todos los frames sin filtros (~20-30 msg/seg)</p>
+                            </div>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="flowMode" value="controlled" checked>
+                            <div class="option-content">
+                                <strong>🤝 Controlado por micro:bit</strong>
+                                <p>Espera confirmación del micro:bit antes del siguiente envío</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="connection-actions">
                     <button class="button button-success" id="connectBtn" aria-label="Conectar micro:bit">
                         🔗 Conectar micro:bit
@@ -111,27 +130,6 @@
                 
                 <div class="bluetooth-info" style="display: none;" id="bluetoothHelp">
                     <strong>⚡ Importante:</strong> Asegúrate de que tu micro:bit tenga un programa que pueda recibir datos por Bluetooth (UART service).
-                </div>
-
-                <!-- Flow Control Settings -->
-                <div class="flow-control-settings" style="display: none;" id="flowControlSettings">
-                    <h4>⚙️ Configuración de flujo de datos</h4>
-                    <div class="flow-options">
-                        <label class="radio-option">
-                            <input type="radio" name="flowMode" value="max" checked>
-                            <div class="option-content">
-                                <strong>🚀 Flujo máximo</strong>
-                                <p>Envía todos los frames sin filtros (~30-60 msg/seg)</p>
-                            </div>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="flowMode" value="controlled">
-                            <div class="option-content">
-                                <strong>🤝 Controlado por micro:bit</strong>
-                                <p>Espera señal "OK" del micro:bit antes de enviar el siguiente</p>
-                            </div>
-                        </label>
-                    </div>
                 </div>
 
                 <div id="sentMessages"></div>
