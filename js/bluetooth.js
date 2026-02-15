@@ -52,29 +52,46 @@ async function connectMicrobit() {
             readyToSend = true;
             
             // Polling: leer del TX characteristic donde micro:bit escribe
-            let lastReadData = '';
+            let lastBufferString = '';
+            let consecutiveEmptyReads = 0;
+            
             setInterval(async () => {
                 if (!txCharacteristic || !microbitDevice?.gatt?.connected) return;
                 
                 try {
                     const value = await txCharacteristic.readValue();
+                    
                     if (value && value.byteLength > 0) {
                         const decoder = new TextDecoder();
                         const response = decoder.decode(value);
                         
-                        // Solo procesar si es dato nuevo
-                        if (response !== lastReadData && response.trim().length > 0) {
-                            lastReadData = response;
-                            console.log('📩 Leído de micro:bit:', response.trim());
+                        // Crear signature del buffer para detectar cambios
+                        const bufferSignature = Array.from(new Uint8Array(value.buffer)).join(',');
+                        
+                        // Solo procesar si el buffer cambió
+                        if (bufferSignature !== lastBufferString) {
+                            lastBufferString = bufferSignature;
+                            consecutiveEmptyReads = 0;
+                            
+                            console.log('📩 Leído de micro:bit:', response.trim(), `[${value.byteLength} bytes]`);
                             
                             if (response.includes('OK') || response.includes('READY')) {
                                 readyToSend = true;
                                 console.log('✅ micro:bit listo para recibir');
                             }
                         }
+                    } else {
+                        // Buffer vacío
+                        consecutiveEmptyReads++;
+                        
+                        // Si llevamos muchas lecturas vacías, resetear
+                        if (consecutiveEmptyReads > 5 && lastBufferString !== '') {
+                            console.log('🔄 Buffer limpiado por micro:bit');
+                            lastBufferString = '';
+                        }
                     }
                 } catch (e) {
-                    // Ignorar errores de lectura (normal si no hay datos nuevos)
+                    // Ignorar errores de lectura
                 }
             }, 100);  // Leer cada 100ms
         }
