@@ -111,6 +111,27 @@
                     <strong>⚡ Importante:</strong> Asegúrate de que tu micro:bit tenga un programa que pueda recibir datos por Bluetooth (UART service).
                 </div>
 
+                <!-- Flow Control Settings -->
+                <div class="flow-control-settings" style="display: none;" id="flowControlSettings">
+                    <h4>⚙️ Configuración de flujo de datos</h4>
+                    <div class="flow-options">
+                        <label class="radio-option">
+                            <input type="radio" name="flowMode" value="max" checked>
+                            <div class="option-content">
+                                <strong>🚀 Flujo máximo</strong>
+                                <p>Envía todos los frames sin filtros (~30-60 msg/seg)</p>
+                            </div>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="flowMode" value="controlled">
+                            <div class="option-content">
+                                <strong>🤝 Controlado por micro:bit</strong>
+                                <p>Espera señal "OK" del micro:bit antes de enviar el siguiente</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <div id="sentMessages"></div>
             </section>
         </div>
