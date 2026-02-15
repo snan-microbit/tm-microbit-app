@@ -217,7 +217,6 @@ async function sendToMicrobit(className, confidence) {
         showStatus('bluetoothStatus', '⚠️ Error al enviar datos: ' + error.message, 'error');
     }
 }
-}
 
 /**
  * Check if connected to micro:bit
