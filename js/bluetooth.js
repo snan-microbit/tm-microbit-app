@@ -47,11 +47,31 @@ async function connectMicrobit() {
         try {
             rxCharacteristic = await uartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
             
-            // Setup notification listener for flow control
             if (FLOW_CONTROL_ENABLED) {
-                await rxCharacteristic.startNotifications();
-                rxCharacteristic.addEventListener('characteristicvaluechanged', handleMicrobitResponse);
-                console.log('✅ Control de flujo habilitado - micro:bit enviará señal de "listo"');
+                console.log('✅ Control de flujo habilitado (modo polling)');
+                console.log('ℹ️ Leyendo confirmaciones cada 100ms');
+                
+                // Polling: leer cada 100ms en lugar de esperar notificaciones
+                setInterval(async () => {
+                    if (!rxCharacteristic || !microbitDevice?.gatt?.connected) return;
+                    
+                    try {
+                        const value = await rxCharacteristic.readValue();
+                        if (value && value.byteLength > 0) {
+                            const decoder = new TextDecoder();
+                            const response = decoder.decode(value);
+                            
+                            console.log('📩 Leído de micro:bit:', response.trim());
+                            
+                            if (response.includes('OK') || response.includes('READY')) {
+                                readyToSend = true;
+                                console.log('✅ micro:bit listo para recibir');
+                            }
+                        }
+                    } catch (e) {
+                        // Ignorar errores de lectura (normal si no hay datos nuevos)
+                    }
+                }, 100);  // Leer cada 100ms
             }
         } catch (error) {
             console.log('ℹ️ RX characteristic no disponible - control de flujo deshabilitado');
@@ -197,6 +217,7 @@ async function sendToMicrobit(className, confidence) {
         console.error('❌ Error al enviar datos:', error);
         showStatus('bluetoothStatus', '⚠️ Error al enviar datos: ' + error.message, 'error');
     }
+}
 }
 
 /**
