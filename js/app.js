@@ -60,6 +60,21 @@ function setupEventListeners() {
         changeModelBtn.addEventListener('click', goHome);
     }
     
+    // Flow mode radio buttons
+    const flowModeRadios = document.querySelectorAll('input[name="flowMode"]');
+    flowModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const mode = e.target.value;
+            if (mode === 'controlled') {
+                setFlowControlMode(true);
+                console.log('🤝 Modo: Controlado por micro:bit');
+            } else {
+                setFlowControlMode(false);
+                console.log('🚀 Modo: Flujo máximo');
+            }
+        });
+    });
+    
     // Allow Enter key to load model
     const modelURLInput = document.getElementById('modelURL');
     if (modelURLInput) {
