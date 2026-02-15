@@ -43,24 +43,28 @@ async function connectMicrobit() {
         // Get TX characteristic (for writing data TO micro:bit)
         txCharacteristic = await uartService.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
         
-        // Get RX characteristic (for reading data FROM micro:bit) - for flow control
-        try {
-            rxCharacteristic = await uartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+        // Setup flow control polling if enabled
+        if (FLOW_CONTROL_ENABLED) {
+            console.log('✅ Control de flujo habilitado (modo polling)');
+            console.log('ℹ️ Leyendo confirmaciones cada 100ms del TX characteristic');
             
-            if (FLOW_CONTROL_ENABLED) {
-                console.log('✅ Control de flujo habilitado (modo polling)');
-                console.log('ℹ️ Leyendo confirmaciones cada 100ms');
+            // IMPORTANTE: Permitir el primer envío
+            readyToSend = true;
+            
+            // Polling: leer del TX characteristic donde micro:bit escribe
+            let lastReadData = '';
+            setInterval(async () => {
+                if (!txCharacteristic || !microbitDevice?.gatt?.connected) return;
                 
-                // Polling: leer cada 100ms en lugar de esperar notificaciones
-                setInterval(async () => {
-                    if (!rxCharacteristic || !microbitDevice?.gatt?.connected) return;
-                    
-                    try {
-                        const value = await rxCharacteristic.readValue();
-                        if (value && value.byteLength > 0) {
-                            const decoder = new TextDecoder();
-                            const response = decoder.decode(value);
-                            
+                try {
+                    const value = await txCharacteristic.readValue();
+                    if (value && value.byteLength > 0) {
+                        const decoder = new TextDecoder();
+                        const response = decoder.decode(value);
+                        
+                        // Solo procesar si es dato nuevo
+                        if (response !== lastReadData && response.trim().length > 0) {
+                            lastReadData = response;
                             console.log('📩 Leído de micro:bit:', response.trim());
                             
                             if (response.includes('OK') || response.includes('READY')) {
@@ -68,13 +72,18 @@ async function connectMicrobit() {
                                 console.log('✅ micro:bit listo para recibir');
                             }
                         }
-                    } catch (e) {
-                        // Ignorar errores de lectura (normal si no hay datos nuevos)
                     }
-                }, 100);  // Leer cada 100ms
-            }
+                } catch (e) {
+                    // Ignorar errores de lectura (normal si no hay datos nuevos)
+                }
+            }, 100);  // Leer cada 100ms
+        }
+        
+        // Get RX characteristic (for reading data FROM micro:bit) - optional
+        try {
+            rxCharacteristic = await uartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
         } catch (error) {
-            console.log('ℹ️ RX characteristic no disponible - control de flujo deshabilitado');
+            console.log('ℹ️ RX characteristic no disponible');
         }
         
         // Log characteristic properties for debugging
