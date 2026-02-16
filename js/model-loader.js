@@ -40,6 +40,16 @@ async function detectModelTypeFromMetadata(baseURL) {
  * Load Teachable Machine model
  */
 async function loadModel(modelURL) {
+    // Wait for TM libraries to load
+    let attempts = 0;
+    while (!window.tmImage || !window.tmPose) {
+        if (attempts > 50) {
+            throw new Error('Las librerías de Teachable Machine no se cargaron');
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+    
     let modelPath = modelURL.endsWith('/') ? modelURL : modelURL + '/';
     
     // Detect type
