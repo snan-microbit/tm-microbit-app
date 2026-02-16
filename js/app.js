@@ -231,7 +231,7 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
         document.getElementById('disconnectBtn').style.display = 'inline-block';
         document.getElementById('connectionBadge').textContent = 'Conectado';
         document.getElementById('connectionBadge').className = 'badge badge-connected';
-        showToast('Conectado', 'success');
+        //showToast('Conectado', 'success');
     } catch (error) {
         showToast('Error al conectar', 'error');
     }
@@ -243,7 +243,7 @@ document.getElementById('disconnectBtn').addEventListener('click', () => {
     document.getElementById('disconnectBtn').style.display = 'none';
     document.getElementById('connectionBadge').textContent = 'Desconectado';
     document.getElementById('connectionBadge').className = 'badge badge-disconnected';
-    showToast('Desconectado', 'info');
+    //showToast('Desconectado', 'info');
 });
 
 // ============================================
