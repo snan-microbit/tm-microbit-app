@@ -207,6 +207,20 @@ document.getElementById('modelUrlInput').addEventListener('keypress', (e) => {
 document.getElementById('backBtn').addEventListener('click', () => {
     stopPredictions();
     if (isConnected()) disconnectMicrobit();
+    
+    // Clean up processing screen
+    const webcamWrapper = document.getElementById('webcam-wrapper');
+    webcamWrapper.innerHTML = ''; // Remove webcam canvas
+    
+    const predictions = document.getElementById('predictions');
+    predictions.innerHTML = ''; // Clear predictions
+    
+    // Reset buttons
+    document.getElementById('connectBtn').style.display = 'inline-block';
+    document.getElementById('disconnectBtn').style.display = 'none';
+    document.getElementById('connectionBadge').textContent = 'Desconectado';
+    document.getElementById('connectionBadge').className = 'badge badge-disconnected';
+    
     showScreen('homeScreen');
 });
 
