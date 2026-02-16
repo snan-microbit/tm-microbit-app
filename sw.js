@@ -1,7 +1,7 @@
 // sw.js
-// Service Worker for PWA
+// Service Worker for PWA - Network First Strategy
 
-const CACHE_NAME = 'tm-microbit-v1';
+const CACHE_NAME = 'tm-microbit-v2.1'; // ← Incrementa esto cuando hagas cambios
 const urlsToCache = [
   './',
   './index.html',
@@ -10,48 +10,58 @@ const urlsToCache = [
   './js/model-loader.js',
   './js/bluetooth.js',
   './js/predictions.js',
-  './js/ui.js',
   './manifest.json'
 ];
 
-// Install event - cache resources
+// Install event - skip waiting to activate immediately
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing new version:', CACHE_NAME);
+  self.skipWaiting(); // Force activate immediately
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('[SW] Caching app shell');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      }
-    )
-  );
-});
-
-// Activate event - clean up old caches
+// Activate event - clean up old caches and take control
 self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
+  console.log('[SW] Activating new version:', CACHE_NAME);
+  
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(() => {
+      return self.clients.claim();
     })
+  );
+});
+
+// Fetch event - NETWORK FIRST strategy (better for development)
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Network success - update cache and return
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseClone);
+        });
+        return response;
+      })
+      .catch(() => {
+        // Network failed - try cache
+        return caches.match(event.request);
+      })
   );
 });
