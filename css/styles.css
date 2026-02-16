@@ -1,12 +1,15 @@
-/* Global Styles - Ceibal Theme */
+/* ============================================
+   TM + micro:bit - Responsive Mobile-First
+   Tema Ceibal
+   ============================================ */
+
 :root {
-    --primary: #00A859;        /* Verde Ceibal */
+    --primary: #00A859;
     --primary-hover: #008A47;
-    --secondary: #0091DA;      /* Azul Ceibal */
-    --accent: #FF6B35;         /* Naranja */
+    --secondary: #0091DA;
+    --accent: #FF6B35;
     --success: #00A859;
     --error: #E63946;
-    --warning: #F77F00;
     --bg: #F5F5F5;
     --surface: #ffffff;
     --text: #333333;
@@ -23,26 +26,28 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+html {
+    font-size: 16px; /* Base: 1rem = 16px */
+}
+
 body {
     font-family: 'Nunito', 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.6;
-    font-size: 18px; /* Aumentado de 16px a 18px */
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
 }
 
 .container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem; /* Aumentado de 1.5rem */
+    padding: 1rem;
 }
 
 .screen {
     min-height: 100vh;
-    animation: fadeIn 0.3s;
     display: block;
 }
 
@@ -50,46 +55,48 @@ body {
     display: none;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
+/* ============================================
+   HOME SCREEN
+   ============================================ */
 
-/* HOME SCREEN */
 .header {
     text-align: center;
-    margin-bottom: 2.5rem;
-    padding-top: 1.5rem;
+    padding: 2rem 0 1.5rem;
 }
 
 .header h1 {
-    font-size: 2.5rem; /* Aumentado de 2rem */
+    font-size: clamp(1.75rem, 5vw, 2.5rem);
     font-weight: 800;
     color: var(--primary);
-    margin-bottom: 0.75rem;
-    letter-spacing: -0.5px;
+    margin-bottom: 0.5rem;
 }
 
 .subtitle {
-    font-size: 1.2rem; /* Aumentado de 1rem */
+    font-size: clamp(0.95rem, 3vw, 1.1rem);
     color: var(--text-light);
-    font-weight: 400;
 }
 
-/* Buttons - Mobile Optimized */
-.btn-primary {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 1.25rem 2rem; /* Aumentado */
-    border-radius: 16px; /* Más redondeado */
-    font-size: 1.3rem; /* Aumentado de 1.1rem */
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-connect,
+.btn-disconnect {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 12px;
+    font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: var(--shadow-lg);
-    min-height: 64px; /* Aumentado de 56px */
+    border: none;
     touch-action: manipulation;
+    min-height: 48px;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--shadow);
 }
 
 .btn-primary:active {
@@ -98,41 +105,29 @@ body {
 }
 
 .btn-large {
-    display: block;
-    width: 100%;
     max-width: 500px;
-    margin: 0 auto 2.5rem;
-    padding: 1.5rem 2rem; /* Aumentado */
-    font-size: 1.4rem; /* Aumentado de 1.25rem */
-    min-height: 72px; /* Aumentado */
+    margin: 0 auto 2rem;
+    display: block;
+    padding: 1.25rem;
+    font-size: 1.2rem;
 }
 
 .btn-secondary {
     background: var(--surface);
     color: var(--text);
     border: 2px solid var(--border);
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    min-height: 56px;
-    touch-action: manipulation;
 }
 
 .btn-secondary:active {
     border-color: var(--primary);
     color: var(--primary);
-    transform: scale(0.98);
 }
 
-/* Models Library */
+/* Models */
 .models-library h2 {
-    font-size: 1.8rem; /* Aumentado de 1.5rem */
-    margin-bottom: 1.5rem;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    margin-bottom: 1rem;
     font-weight: 700;
-    color: var(--text);
 }
 
 .models-grid {
@@ -144,56 +139,51 @@ body {
 .model-card {
     background: var(--surface);
     border: 2px solid var(--border);
-    border-radius: 16px;
-    padding: 1.5rem;
+    border-radius: 12px;
+    padding: 1.25rem;
     transition: all 0.2s;
-    touch-action: manipulation;
 }
 
 .model-card:active {
     border-color: var(--primary);
     transform: scale(0.98);
-    box-shadow: var(--shadow-lg);
 }
 
 .model-card-title {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    color: var(--text);
 }
 
 .model-card-url {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-light);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
 }
 
 .model-card-date {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-light);
+    margin-bottom: 1rem;
 }
 
 .model-card-actions {
     display: flex;
     gap: 0.75rem;
-    margin-top: 1rem;
 }
 
 .btn-card {
     flex: 1;
     padding: 0.875rem;
-    border: none;
-    border-radius: 10px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
+    border-radius: 8px;
+    font-size: 0.95rem;
     font-weight: 600;
-    min-height: 48px;
-    touch-action: manipulation;
+    cursor: pointer;
+    border: none;
+    min-height: 44px;
 }
 
 .btn-use {
@@ -203,7 +193,6 @@ body {
 
 .btn-use:active {
     background: var(--primary-hover);
-    transform: scale(0.95);
 }
 
 .btn-delete {
@@ -213,27 +202,29 @@ body {
 }
 
 .btn-delete:active {
-    background: #FEE2E2;
+    background: #fee2e2;
     border-color: var(--error);
-    transform: scale(0.95);
 }
 
 .empty-state {
     text-align: center;
-    padding: 4rem 2rem; /* Más padding */
-    color: var(--text-light);
+    padding: 3rem 1rem;
 }
 
 .empty-state p:first-child {
-    font-size: 4rem; /* Aumentado de 3.5rem */
-    margin-bottom: 1.5rem;
+    font-size: 3rem;
+    margin-bottom: 1rem;
 }
 
 .empty-hint {
-    font-size: 1.2rem; /* Aumentado de 1rem */
+    font-size: 1rem;
+    color: var(--text-light);
 }
 
-/* PROCESSING SCREEN */
+/* ============================================
+   PROCESSING SCREEN
+   ============================================ */
+
 .processing-layout {
     min-height: 100vh;
     display: flex;
@@ -243,45 +234,43 @@ body {
 .processing-header {
     background: var(--surface);
     border-bottom: 2px solid var(--border);
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    min-height: 64px;
+    gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 .btn-back {
     background: none;
     border: none;
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--primary);
-    cursor: pointer;
     font-weight: 700;
-    padding: 0.75rem;
+    padding: 0.5rem;
     min-width: 44px;
     min-height: 44px;
-    touch-action: manipulation;
-}
-
-.btn-back:active {
-    color: var(--primary-hover);
-    transform: scale(0.95);
+    cursor: pointer;
 }
 
 .processing-header h2 {
     flex: 1;
-    font-size: 1.25rem;
+    font-size: clamp(1rem, 4vw, 1.25rem);
     font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .badge {
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.75rem;
     border-radius: 20px;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    white-space: nowrap;
 }
 
 .badge::before {
@@ -289,11 +278,12 @@ body {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .badge-connected {
-    background: #D1FAE5;
-    color: #065F46;
+    background: #d1fae5;
+    color: #065f46;
 }
 
 .badge-connected::before {
@@ -302,8 +292,8 @@ body {
 }
 
 .badge-disconnected {
-    background: #FEE2E2;
-    color: #991B1B;
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 .badge-disconnected::before {
@@ -326,18 +316,19 @@ body {
 
 .webcam-container {
     background: var(--surface);
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: var(--shadow);
     overflow: hidden;
+    width: 100%;
+    aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 300px;
-    flex: 0 0 auto;
 }
 
 #webcam-wrapper {
     width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -345,22 +336,24 @@ body {
 
 #webcam-wrapper canvas {
     max-width: 100%;
-    height: auto;
-    border-radius: 8px;
+    max-height: 100%;
+    width: auto !important;
+    height: auto !important;
 }
 
 .predictions-panel {
     background: var(--surface);
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: var(--shadow);
-    padding: 1.25rem;
+    padding: 1rem;
     overflow-y: auto;
-    flex: 1 1 auto;
+    flex: 1;
+    min-height: 200px;
 }
 
 .predictions-panel h3 {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
     font-weight: 700;
 }
 
@@ -371,107 +364,83 @@ body {
 }
 
 .prediction-item {
-    padding: 1rem;
+    padding: 0.875rem;
     background: var(--bg);
-    border-radius: 12px;
+    border-radius: 8px;
     border-left: 4px solid transparent;
-    transition: all 0.2s;
 }
 
 .prediction-item.top {
     border-left-color: var(--primary);
-    background: #E8F5E9;
+    background: #e8f5e9;
 }
 
 .prediction-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
 }
 
 .class-name {
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 .confidence {
     font-weight: 700;
     color: var(--primary);
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 .confidence-bar {
-    height: 10px;
-    background: #E0E0E0;
-    border-radius: 5px;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
     overflow: hidden;
 }
 
 .confidence-fill {
     height: 100%;
     background: var(--primary);
-    border-radius: 5px;
     transition: width 0.3s;
 }
 
 .processing-actions {
     background: var(--surface);
     border-top: 2px solid var(--border);
-    padding: 1.25rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
+    padding: 1rem;
+    flex-shrink: 0;
 }
 
 .btn-connect {
     background: var(--success);
     color: white;
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    min-height: 56px;
-    flex: 1;
     max-width: 400px;
-    touch-action: manipulation;
+    margin: 0 auto;
 }
 
 .btn-connect:active {
-    background: #008A47;
-    transform: scale(0.98);
+    background: #008a47;
 }
 
 .btn-disconnect {
     background: var(--error);
     color: white;
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    min-height: 56px;
-    flex: 1;
     max-width: 400px;
-    touch-action: manipulation;
+    margin: 0 auto;
 }
 
 .btn-disconnect:active {
-    background: #C5303E;
-    transform: scale(0.98);
+    background: #c5303e;
 }
 
-/* MODAL */
+/* ============================================
+   MODAL
+   ============================================ */
+
 .modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
@@ -486,80 +455,66 @@ body {
 
 .modal-content {
     background: var(--surface);
-    border-radius: 20px;
+    border-radius: 16px;
     width: 100%;
     max-width: 500px;
-    animation: slideUp 0.3s;
     max-height: 90vh;
     overflow-y: auto;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
-    padding: 1.5rem;
+    align-items: center;
+    padding: 1.25rem;
     border-bottom: 2px solid var(--border);
 }
 
 .modal-header h3 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 700;
 }
 
 .modal-close {
     background: none;
     border: none;
-    font-size: 2rem;
-    cursor: pointer;
+    font-size: 1.75rem;
     color: var(--text-light);
     width: 44px;
     height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
     border-radius: 8px;
-    touch-action: manipulation;
 }
 
 .modal-close:active {
     background: var(--bg);
-    color: var(--text);
 }
 
 .modal-body {
-    padding: 1.5rem;
+    padding: 1.25rem;
 }
 
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
 }
 
 .form-group label {
     display: block;
     font-weight: 700;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     font-size: 1rem;
 }
 
 .input-text {
     width: 100%;
-    padding: 1rem;
+    padding: 0.875rem;
     border: 2px solid var(--border);
-    border-radius: 12px;
+    border-radius: 10px;
     font-size: 1rem;
-    transition: all 0.2s;
-    min-height: 56px;
+    font-family: inherit;
 }
 
 .input-text:focus {
@@ -571,30 +526,33 @@ body {
 .input-hint {
     display: block;
     margin-top: 0.5rem;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-light);
 }
 
 .modal-footer {
     display: flex;
-    gap: 1rem;
-    padding: 1.5rem;
+    gap: 0.75rem;
+    padding: 1.25rem;
     border-top: 2px solid var(--border);
 }
 
-.modal-footer .btn-secondary,
-.modal-footer .btn-primary {
+.modal-footer .btn-primary,
+.modal-footer .btn-secondary {
     flex: 1;
 }
 
-/* TOAST */
+/* ============================================
+   TOAST
+   ============================================ */
+
 .toast {
     position: fixed;
-    bottom: 2rem;
+    bottom: 1rem;
     left: 1rem;
     right: 1rem;
     background: var(--surface);
-    padding: 1.25rem;
+    padding: 1rem;
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
     border-left: 4px solid var(--primary);
@@ -602,7 +560,6 @@ body {
     opacity: 0;
     transition: all 0.3s;
     z-index: 2000;
-    font-size: 1rem;
     font-weight: 600;
 }
 
@@ -619,61 +576,73 @@ body {
     border-left-color: var(--error);
 }
 
-/* RESPONSIVE - Tablet */
-@media (min-width: 768px) {
-    .models-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-    }
-    
-    .processing-content {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 1.5rem;
+/* ============================================
+   RESPONSIVE - Tablet y Desktop
+   ============================================ */
+
+@media (min-width: 640px) {
+    .container {
         padding: 1.5rem;
     }
     
-    .webcam-container {
-        min-height: 400px;
+    .models-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
     
     .toast {
         left: auto;
-        right: 2rem;
+        right: 1.5rem;
         max-width: 400px;
     }
 }
 
-/* RESPONSIVE - Desktop */
-@media (min-width: 1024px) {
-    .header h1 {
-        font-size: 2.5rem;
+@media (min-width: 768px) {
+    .processing-content {
+        flex-direction: row;
+        padding: 1.5rem;
+        gap: 1.5rem;
     }
     
-    .subtitle {
-        font-size: 1.1rem;
+    .webcam-container {
+        flex: 2;
+        aspect-ratio: auto;
+    }
+    
+    .predictions-panel {
+        flex: 1;
+        min-height: auto;
+    }
+}
+
+@media (min-width: 1024px) {
+    .container {
+        padding: 2rem;
     }
     
     .models-grid {
         grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
     }
 }
 
-/* Prevent zoom on double-tap */
+/* ============================================
+   UTILITIES
+   ============================================ */
+
 button, a, input {
     touch-action: manipulation;
 }
 
-/* Safe area for notch */
+/* Safe area para notch */
 @supports (padding: max(0px)) {
     .processing-header {
-        padding-left: max(1.5rem, env(safe-area-inset-left));
-        padding-right: max(1.5rem, env(safe-area-inset-right));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
     }
     
     .processing-actions {
-        padding-left: max(1.25rem, env(safe-area-inset-left));
-        padding-right: max(1.25rem, env(safe-area-inset-right));
-        padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
 }
