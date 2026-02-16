@@ -3,9 +3,13 @@
  * Main application logic with model library
  */
 
+console.log('📝 app.js loading...');
+
 import { loadModel } from './model-loader.js';
 import { connectMicrobit, disconnectMicrobit, isConnected } from './bluetooth.js';
 import { startPredictions, stopPredictions } from './predictions.js';
+
+console.log('✅ app.js modules imported');
 
 let currentModel = null;
 const MODELS_KEY = 'tm_microbit_models';
@@ -111,8 +115,8 @@ async function useModel(model) {
 // ============================================
 
 function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    document.getElementById(screenId).style.display = 'block';
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById(screenId).classList.remove('hidden');
 }
 
 // ============================================
@@ -120,14 +124,14 @@ function showScreen(screenId) {
 // ============================================
 
 function showNewModelModal() {
-    document.getElementById('newModelModal').style.display = 'flex';
+    document.getElementById('newModelModal').classList.remove('hidden');
     document.getElementById('modelNameInput').value = '';
     document.getElementById('modelUrlInput').value = '';
     document.getElementById('modelNameInput').focus();
 }
 
 function hideModal() {
-    document.getElementById('newModelModal').style.display = 'none';
+    document.getElementById('newModelModal').classList.add('hidden');
 }
 
 async function saveNewModel() {
@@ -233,9 +237,20 @@ document.getElementById('disconnectBtn').addEventListener('click', () => {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    renderModels();
-    console.log('🚀 TM + micro:bit ready');
+    console.log('🚀 DOMContentLoaded event fired');
+    console.log('📦 Elements check:');
+    console.log('- newModelBtn:', document.getElementById('newModelBtn'));
+    console.log('- modelsList:', document.getElementById('modelsList'));
+    console.log('- emptyState:', document.getElementById('emptyState'));
+    
+    try {
+        renderModels();
+        console.log('✅ Models rendered successfully');
+    } catch (error) {
+        console.error('❌ Error rendering models:', error);
+    }
+    
+    console.log('✅ TM + micro:bit ready');
 });
 
 export { showToast };
-
