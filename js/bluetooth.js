@@ -207,7 +207,7 @@ async function sendToMicrobit(className, confidence) {
         const data = encoder.encode(message);
         
         // Logs de depuración (comentar si es mucho)
-        console.log('📤 Enviando:', message.trim());
+        // console.log('📤 Enviando:', message.trim());
         
         // Verificar que el mensaje no sea muy largo (máximo 20 bytes para BLE)
         if (data.length > 20) {
