@@ -247,6 +247,32 @@ document.getElementById('disconnectBtn').addEventListener('click', () => {
 });
 
 // ============================================
+// PULL-TO-REFRESH PREVENTION
+// ============================================
+
+// Prevenir el gesto de recargar página en la pantalla de processing
+let touchStartY = 0;
+
+document.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+}, { passive: false });
+
+document.addEventListener('touchmove', (e) => {
+    const processingScreen = document.getElementById('processingScreen');
+    const isProcessingVisible = !processingScreen.classList.contains('hidden');
+    
+    if (isProcessingVisible) {
+        const touchY = e.touches[0].clientY;
+        const touchDelta = touchY - touchStartY;
+        
+        // Si el usuario está jalando hacia abajo desde la parte superior
+        if (touchDelta > 0 && window.scrollY === 0) {
+            e.preventDefault();
+        }
+    }
+}, { passive: false });
+
+// ============================================
 // INIT
 // ============================================
 
