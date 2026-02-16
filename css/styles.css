@@ -4,11 +4,11 @@
    ============================================ */
 
 :root {
-    --primary: #00A859;
-    --primary-hover: #008A47;
+    --primary: #009f95;
+    --primary-hover: #008680;
     --secondary: #0091DA;
     --accent: #FF6B35;
-    --success: #00A859;
+    --success: #009f95;
     --error: #E63946;
     --bg: #F5F5F5;
     --surface: #ffffff;
@@ -234,29 +234,44 @@ body {
     padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
     flex-shrink: 0;
+    position: relative;
 }
 
 .btn-back {
     background: none;
     border: none;
-    font-size: 1rem;
+    font-size: 1.5rem;
     color: var(--primary);
-    font-weight: 700;
+    font-weight: 400;
     padding: 0.5rem;
     min-width: 44px;
     min-height: 44px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-back svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--primary);
 }
 
 .processing-header h2 {
-    flex: 1;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: clamp(1rem, 4vw, 1.25rem);
     font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 50%;
+    text-align: center;
 }
 
 .badge {
@@ -286,6 +301,16 @@ body {
 .badge-connected::before {
     background: var(--success);
     animation: pulse 2s infinite;
+}
+
+.badge-connecting {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-connecting::before {
+    background: #f59e0b;
+    animation: pulse 1s infinite;
 }
 
 .badge-disconnected {
@@ -413,7 +438,9 @@ body {
     background: var(--success);
     color: white;
     max-width: 400px;
+    width: 100%;
     margin: 0 auto;
+    display: block;
 }
 
 .btn-connect:active {
@@ -424,7 +451,9 @@ body {
     background: var(--error);
     color: white;
     max-width: 400px;
+    width: 100%;
     margin: 0 auto;
+    display: block;
 }
 
 .btn-disconnect:active {

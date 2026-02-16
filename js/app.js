@@ -216,7 +216,7 @@ document.getElementById('backBtn').addEventListener('click', () => {
     predictions.innerHTML = ''; // Clear predictions
     
     // Reset buttons
-    document.getElementById('connectBtn').style.display = 'inline-block';
+    document.getElementById('connectBtn').style.display = 'block';
     document.getElementById('disconnectBtn').style.display = 'none';
     document.getElementById('connectionBadge').textContent = 'Desconectado';
     document.getElementById('connectionBadge').className = 'badge badge-disconnected';
@@ -225,21 +225,28 @@ document.getElementById('backBtn').addEventListener('click', () => {
 });
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
+    // Mostrar estado "Conectando"
+    document.getElementById('connectionBadge').textContent = 'Conectando...';
+    document.getElementById('connectionBadge').className = 'badge badge-connecting';
+    
     try {
         await connectMicrobit();
         document.getElementById('connectBtn').style.display = 'none';
-        document.getElementById('disconnectBtn').style.display = 'inline-block';
+        document.getElementById('disconnectBtn').style.display = 'block';
         document.getElementById('connectionBadge').textContent = 'Conectado';
         document.getElementById('connectionBadge').className = 'badge badge-connected';
         //showToast('Conectado', 'success');
     } catch (error) {
+        // Volver a estado desconectado si falla
+        document.getElementById('connectionBadge').textContent = 'Desconectado';
+        document.getElementById('connectionBadge').className = 'badge badge-disconnected';
         showToast('Error al conectar', 'error');
     }
 });
 
 document.getElementById('disconnectBtn').addEventListener('click', () => {
     disconnectMicrobit();
-    document.getElementById('connectBtn').style.display = 'inline-block';
+    document.getElementById('connectBtn').style.display = 'block';
     document.getElementById('disconnectBtn').style.display = 'none';
     document.getElementById('connectionBadge').textContent = 'Desconectado';
     document.getElementById('connectionBadge').className = 'badge badge-disconnected';
