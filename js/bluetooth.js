@@ -1,145 +1,40 @@
-// bluetooth.js
-// Handles Bluetooth connection with micro:bit
+/**
+ * bluetooth.js
+ * Simplified Bluetooth - Maximum flow only
+ */
 
 let microbitDevice = null;
 let uartService = null;
-let txCharacteristic = null;  // Para escribir AL micro:bit (TX desde perspectiva web)
-let rxCharacteristic = null;  // Para leer DESDE micro:bit (RX desde perspectiva web)
-let lastSentClass = '';
-let lastSentConfidence = 0;
-let lastSendTime = 0;
-let readyToSend = true;  // Flag para control de flujo
-let keepAliveInterval = null;  // Interval para keep-alive
+let txCharacteristic = null;
+let keepAliveInterval = null;
 
-// Configuración de flujo
-let FLOW_CONTROL_ENABLED = true;  // true por defecto (modo controlado)
-const MIN_SEND_INTERVAL = 0;  // 0 = sin límite de velocidad
-const KEEP_ALIVE_INTERVAL = 120000;  // 2 minutos (120 segundos)
-
-// UART Service UUID for micro:bit
 const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-// TX Characteristic - for writing TO micro:bit (from web perspective) 
 const UART_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-// RX Characteristic - for reading FROM micro:bit (from web perspective)
-const UART_RX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const KEEP_ALIVE_INTERVAL = 120000; // 2 minutes
 
 /**
- * Connect to micro:bit via Bluetooth
+ * Connect to micro:bit
  */
 async function connectMicrobit() {
     try {
-        showStatus('bluetoothStatus', 'Buscando micro:bit...', 'info');
-        
-        // Request Bluetooth device
         microbitDevice = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: 'BBC micro:bit' }],
             optionalServices: [UART_SERVICE_UUID]
         });
 
-        // Connect to GATT server
         const server = await microbitDevice.gatt.connect();
-        
-        // Get UART service
         uartService = await server.getPrimaryService(UART_SERVICE_UUID);
-        
-        // Get TX characteristic (for writing data TO micro:bit)
         txCharacteristic = await uartService.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
         
-        // Setup flow control polling if enabled
-        if (FLOW_CONTROL_ENABLED) {
-            console.log('✅ Control de flujo habilitado (modo polling)');
-            console.log('ℹ️ Leyendo confirmaciones cada 100ms del TX characteristic');
-            
-            // IMPORTANTE: Permitir el primer envío
-            readyToSend = true;
-            
-            // Polling: leer del TX characteristic donde micro:bit escribe
-            let lastBufferString = '';
-            let consecutiveEmptyReads = 0;
-            
-            setInterval(async () => {
-                if (!txCharacteristic || !microbitDevice?.gatt?.connected) return;
-                
-                try {
-                    const value = await txCharacteristic.readValue();
-                    
-                    if (value && value.byteLength > 0) {
-                        const decoder = new TextDecoder();
-                        const response = decoder.decode(value);
-                        
-                        // Crear signature del buffer para detectar cambios
-                        const bufferSignature = Array.from(new Uint8Array(value.buffer)).join(',');
-                        
-                        // Solo procesar si el buffer cambió
-                        if (bufferSignature !== lastBufferString) {
-                            lastBufferString = bufferSignature;
-                            consecutiveEmptyReads = 0;
-                            
-                            console.log('📩 Leído de micro:bit:', response.trim(), `[${value.byteLength} bytes]`);
-                            
-                            if (response.includes('OK') || response.includes('READY')) {
-                                readyToSend = true;
-                                console.log('✅ micro:bit listo para recibir');
-                            }
-                        }
-                    } else {
-                        // Buffer vacío
-                        consecutiveEmptyReads++;
-                        
-                        // Si llevamos muchas lecturas vacías, resetear
-                        if (consecutiveEmptyReads > 5 && lastBufferString !== '') {
-                            console.log('🔄 Buffer limpiado por micro:bit');
-                            lastBufferString = '';
-                        }
-                    }
-                } catch (e) {
-                    // Ignorar errores de lectura
-                }
-            }, 100);  // Leer cada 100ms
-        }
+        console.log('✅ Connected to:', microbitDevice.name);
         
-        // Get RX characteristic (for reading data FROM micro:bit) - optional
-        try {
-            rxCharacteristic = await uartService.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
-        } catch (error) {
-            console.log('ℹ️ RX characteristic no disponible');
-        }
-        
-        // Log characteristic properties for debugging
-        console.log('TX Characteristic properties:', txCharacteristic.properties);
-        console.log('Can write:', txCharacteristic.properties.write);
-        console.log('Can writeWithoutResponse:', txCharacteristic.properties.writeWithoutResponse);
-
-        showStatus('bluetoothStatus', '✅ Conectado a ' + microbitDevice.name, 'success');
-        
-        // Update connection badge
-        updateConnectionBadge(true, microbitDevice.name);
-        
-        // Start keep-alive heartbeat to prevent 3-minute timeout
         startKeepAlive();
-        
-        // Update UI
-        document.getElementById('connectBtn').style.display = 'none';
-        document.getElementById('disconnectBtn').style.display = 'inline-block';
-        document.getElementById('testBtn').style.display = 'inline-block';
-        document.getElementById('bluetoothHelp').style.display = 'block';
-
-        // Handle disconnection
         microbitDevice.addEventListener('gattserverdisconnected', onDisconnected);
-
+        
+        return true;
     } catch (error) {
-        console.error('Error de Bluetooth:', error);
-        let errorMsg = 'Error al conectar';
-        
-        if (error.name === 'NotFoundError') {
-            errorMsg = 'No se encontró ningún micro:bit. Asegúrate de que esté encendido y cerca.';
-        } else if (error.name === 'SecurityError') {
-            errorMsg = 'Error de seguridad. Asegúrate de estar usando HTTPS.';
-        } else {
-            errorMsg = 'Error al conectar: ' + error.message;
-        }
-        
-        showStatus('bluetoothStatus', errorMsg, 'error');
+        console.error('❌ Bluetooth error:', error);
+        throw error;
     }
 }
 
@@ -154,190 +49,68 @@ function disconnectMicrobit() {
 }
 
 /**
- * Handle disconnection event
+ * Handle disconnection
  */
 function onDisconnected() {
     uartService = null;
     txCharacteristic = null;
-    rxCharacteristic = null;
     microbitDevice = null;
-    
-    // Stop keep-alive
     stopKeepAlive();
-    
-    showStatus('bluetoothStatus', 'Desconectado', 'info');
-    updateConnectionBadge(false);
-    
-    document.getElementById('connectBtn').style.display = 'inline-block';
-    document.getElementById('disconnectBtn').style.display = 'none';
-    document.getElementById('testBtn').style.display = 'none';
-}
-
-/**
- * Handle responses from micro:bit (for flow control)
- */
-function handleMicrobitResponse(event) {
-    const value = event.target.value;
-    const decoder = new TextDecoder();
-    const response = decoder.decode(value);
-    
-    console.log('📩 Recibido de micro:bit:', response.trim());
-    
-    // Si el micro:bit envía "OK" o "READY", está listo para recibir
-    if (response.includes('OK') || response.includes('READY')) {
-        readyToSend = true;
-        console.log('✅ micro:bit listo para recibir');
-    }
+    console.log('Disconnected');
 }
 
 /**
  * Send data to micro:bit
- * Format: "CLASS#CONFIDENCE\n"
  */
 async function sendToMicrobit(className, confidence) {
     if (!txCharacteristic) return;
     
-    const confidenceRounded = Math.round(confidence);
-    
-    // OPCIÓN 2: Control de flujo - esperar a que micro:bit esté listo
-    if (FLOW_CONTROL_ENABLED && !readyToSend) {
-        console.log('⏸️ Esperando a que micro:bit esté listo...');
-        return;
-    }
-    
-    // OPCIÓN 1: Sin filtros - enviar TODO sin restricciones
-    // (cuando FLOW_CONTROL_ENABLED = false, envía cada frame)
-    
     try {
-        // Format: "CLASS#CONFIDENCE\n" (usando # como separador)
-        const message = `${className}#${confidenceRounded}\n`;
+        const message = `${className}#${Math.round(confidence)}\n`;
         const encoder = new TextEncoder();
         const data = encoder.encode(message);
         
-        // Logs de depuración (comentar si es mucho)
-        // console.log('📤 Enviando:', message.trim());
-        
-        // Verificar que el mensaje no sea muy largo (máximo 20 bytes para BLE)
         if (data.length > 20) {
-            console.warn('⚠️ Mensaje muy largo, truncando:', message);
             const truncated = message.substring(0, 17) + '\n';
-            const truncatedData = encoder.encode(truncated);
-            await txCharacteristic.writeValueWithoutResponse(truncatedData);
+            await txCharacteristic.writeValueWithoutResponse(encoder.encode(truncated));
         } else {
             await txCharacteristic.writeValueWithoutResponse(data);
         }
-        
-        // Si está habilitado el control de flujo, marcar como no listo
-        if (FLOW_CONTROL_ENABLED) {
-            readyToSend = false;
-        }
-        
-        // Actualizar UI (throttle esto para no saturar el DOM)
-        const now = Date.now();
-        if (now - lastSendTime > 100) {  // Actualizar UI máximo cada 100ms
-            const messagesDiv = document.getElementById('sentMessages');
-            if (messagesDiv) {
-                messagesDiv.innerHTML = `
-                    <div class="sent-message">
-                        📤 Enviado: ${message.trim()} (${data.length} bytes)
-                    </div>
-                `;
-            }
-            lastSendTime = now;
-        }
-        
     } catch (error) {
-        console.error('❌ Error al enviar datos:', error);
-        showStatus('bluetoothStatus', '⚠️ Error al enviar datos: ' + error.message, 'error');
+        console.error('❌ Send error:', error);
     }
 }
 
 /**
- * Check if connected to micro:bit
+ * Check if connected
  */
 function isConnected() {
-    return txCharacteristic !== null;
+    return txCharacteristic !== null && microbitDevice?.gatt?.connected;
 }
 
 /**
- * Get connection status
- */
-function getConnectionStatus() {
-    return {
-        connected: isConnected(),
-        deviceName: microbitDevice ? microbitDevice.name : null
-    };
-}
-
-/**
- * Update connection badge in UI
- */
-function updateConnectionBadge(connected, deviceName = null) {
-    const badge = document.getElementById('connectionStatusBadge');
-    if (!badge) return;
-    
-    if (connected) {
-        badge.className = 'status-badge connected';
-        badge.textContent = deviceName ? `Conectado: ${deviceName}` : 'Conectado';
-    } else {
-        badge.className = 'status-badge disconnected';
-        badge.textContent = 'Desconectado';
-    }
-}
-
-/**
- * Set flow control mode
- * @param {boolean} enabled - true para modo controlado, false para flujo máximo
- */
-function setFlowControlMode(enabled) {
-    FLOW_CONTROL_ENABLED = enabled;
-    readyToSend = true;  // Reset flag
-    
-    if (enabled) {
-        console.log('🤝 Control de flujo habilitado');
-        console.log('ℹ️ micro:bit debe enviar "OK" o "READY" después de procesar cada mensaje');
-    } else {
-        console.log('🚀 Flujo máximo habilitado');
-        console.log('ℹ️ Se enviarán todos los frames sin esperar confirmación');
-    }
-}
-
-/**
- * Start keep-alive heartbeat to prevent 3-minute Bluetooth timeout
+ * Keep-alive heartbeat
  */
 function startKeepAlive() {
-    // Clear any existing interval
     stopKeepAlive();
-    
-    console.log('💓 Iniciando keep-alive (cada 2 minutos)');
+    console.log('💓 Keep-alive started');
     
     keepAliveInterval = setInterval(() => {
         if (txCharacteristic && microbitDevice?.gatt?.connected) {
-            // Send empty message as heartbeat
             const encoder = new TextEncoder();
-            const ping = encoder.encode('\n');  // Solo newline
-            
-            txCharacteristic.writeValueWithoutResponse(ping)
-                .then(() => {
-                    console.log('💓 Keep-alive ping enviado');
-                })
-                .catch(err => {
-                    console.warn('⚠️ Keep-alive ping falló:', err);
-                });
+            txCharacteristic.writeValueWithoutResponse(encoder.encode('\n'))
+                .catch(err => console.warn('⚠️ Ping failed:', err));
         } else {
-            // No connection, stop keep-alive
             stopKeepAlive();
         }
     }, KEEP_ALIVE_INTERVAL);
 }
 
-/**
- * Stop keep-alive heartbeat
- */
 function stopKeepAlive() {
     if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
         keepAliveInterval = null;
-        console.log('💓 Keep-alive detenido');
     }
 }
+
+export { connectMicrobit, disconnectMicrobit, sendToMicrobit, isConnected };

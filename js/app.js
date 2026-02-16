@@ -1,127 +1,241 @@
-// app.js
-// Main application initialization and event handlers
-
 /**
- * Initialize the application
+ * app.js
+ * Main application logic with model library
  */
-function init() {
-    console.log('Teachable Machine + micro:bit - Initialized');
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Check for Bluetooth support
-    checkBluetoothSupport();
-    
-    // Register service worker for PWA
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker registered', reg))
-            .catch(err => console.log('Service Worker registration failed', err));
-    }
+
+import { loadModel } from './model-loader.js';
+import { connectMicrobit, disconnectMicrobit, isConnected } from './bluetooth.js';
+import { startPredictions, stopPredictions } from './predictions.js';
+
+let currentModel = null;
+const MODELS_KEY = 'tm_microbit_models';
+
+// ============================================
+// MODEL LIBRARY
+// ============================================
+
+function loadModels() {
+    const stored = localStorage.getItem(MODELS_KEY);
+    return stored ? JSON.parse(stored) : [];
 }
 
-/**
- * Setup all event listeners
- */
-function setupEventListeners() {
-    // Load model button
-    const loadModelBtn = document.getElementById('loadModelBtn');
-    if (loadModelBtn) {
-        loadModelBtn.addEventListener('click', loadModel);
+function saveModels(models) {
+    localStorage.setItem(MODELS_KEY, JSON.stringify(models));
+}
+
+function addModel(name, url) {
+    const models = loadModels();
+    const newModel = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        url: url.trim(),
+        createdAt: new Date().toISOString()
+    };
+    models.unshift(newModel);
+    saveModels(models);
+    return newModel;
+}
+
+function deleteModel(id) {
+    const models = loadModels();
+    const filtered = models.filter(m => m.id !== id);
+    saveModels(filtered);
+}
+
+function renderModels() {
+    const models = loadModels();
+    const modelsList = document.getElementById('modelsList');
+    const emptyState = document.getElementById('emptyState');
+
+    if (models.length === 0) {
+        modelsList.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
     }
+
+    emptyState.style.display = 'none';
     
-    // Connect micro:bit button
-    const connectBtn = document.getElementById('connectBtn');
-    if (connectBtn) {
-        connectBtn.addEventListener('click', connectMicrobit);
-    }
-    
-    // Disconnect micro:bit button
-    const disconnectBtn = document.getElementById('disconnectBtn');
-    if (disconnectBtn) {
-        disconnectBtn.addEventListener('click', disconnectMicrobit);
-    }
-    
-    // Test button - send manual message
-    const testBtn = document.getElementById('testBtn');
-    if (testBtn) {
-        testBtn.addEventListener('click', async () => {
-            if (isConnected()) {
-                await sendToMicrobit('TEST', 99);
-                console.log('🧪 Mensaje de prueba enviado: TEST#99');
-            }
+    modelsList.innerHTML = models.map(model => `
+        <div class="model-card">
+            <div class="model-card-title">${escapeHtml(model.name)}</div>
+            <div class="model-card-url">${escapeHtml(model.url)}</div>
+            <div class="model-card-date">Creado: ${formatDate(model.createdAt)}</div>
+            <div class="model-card-actions">
+                <button class="btn-card btn-use" data-action="use" data-id="${model.id}">
+                    ▶ Usar
+                </button>
+                <button class="btn-card btn-delete" data-action="delete" data-id="${model.id}">
+                    🗑 Eliminar
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    modelsList.querySelectorAll('[data-action="use"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const model = models.find(m => m.id === btn.dataset.id);
+            if (model) useModel(model);
         });
-    }
-    
-    // Change model button
-    const changeModelBtn = document.getElementById('changeModelBtn');
-    if (changeModelBtn) {
-        changeModelBtn.addEventListener('click', goHome);
-    }
-    
-    // Flow mode radio buttons
-    const flowModeRadios = document.querySelectorAll('input[name="flowMode"]');
-    flowModeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const mode = e.target.value;
-            if (mode === 'controlled') {
-                setFlowControlMode(true);
-                console.log('🤝 Modo: Controlado por micro:bit');
-            } else {
-                setFlowControlMode(false);
-                console.log('🚀 Modo: Flujo máximo');
+    });
+
+    modelsList.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (confirm('¿Eliminar este modelo?')) {
+                deleteModel(btn.dataset.id);
+                renderModels();
+                showToast('Modelo eliminado', 'success');
             }
         });
     });
+}
+
+async function useModel(model) {
+    currentModel = model;
+    showScreen('processingScreen');
+    document.getElementById('modelName').textContent = model.name;
+    showToast('Cargando modelo...', 'info');
     
-    // Allow Enter key to load model
-    const modelURLInput = document.getElementById('modelURL');
-    if (modelURLInput) {
-        modelURLInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                loadModel();
-            }
-        });
+    try {
+        await loadModel(model.url);
+        await startPredictions();
+        showToast('Modelo cargado', 'success');
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error al cargar el modelo', 'error');
+        showScreen('homeScreen');
     }
 }
 
-/**
- * Check if Bluetooth is supported
- */
-function checkBluetoothSupport() {
-    if (!navigator.bluetooth) {
-        console.warn('Web Bluetooth API not supported');
-        showStatus('bluetoothStatus', 
-            '⚠️ Tu navegador no soporta Bluetooth Web. Usa Chrome o Edge en escritorio.', 
-            'error'
-        );
-    }
+// ============================================
+// NAVIGATION
+// ============================================
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    document.getElementById(screenId).style.display = 'block';
 }
 
-/**
- * Cleanup on page unload
- */
-function cleanup() {
-    console.log('Cleaning up...');
+// ============================================
+// MODAL
+// ============================================
+
+function showNewModelModal() {
+    document.getElementById('newModelModal').style.display = 'flex';
+    document.getElementById('modelNameInput').value = '';
+    document.getElementById('modelUrlInput').value = '';
+    document.getElementById('modelNameInput').focus();
+}
+
+function hideModal() {
+    document.getElementById('newModelModal').style.display = 'none';
+}
+
+async function saveNewModel() {
+    const name = document.getElementById('modelNameInput').value.trim();
+    const url = document.getElementById('modelUrlInput').value.trim();
+
+    if (!name) {
+        showToast('Ingresa un nombre', 'error');
+        return;
+    }
+
+    if (!url || !url.includes('teachablemachine.withgoogle.com')) {
+        showToast('URL inválida', 'error');
+        return;
+    }
+
+    const model = addModel(name, url);
+    hideModal();
+    renderModels();
+    await useModel(model);
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diff = now - date;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     
-    // Stop predictions
-    if (typeof stopPredictions === 'function') {
-        stopPredictions();
-    }
+    if (days === 0) return 'Hoy';
+    if (days === 1) return 'Ayer';
+    if (days < 7) return `Hace ${days} días`;
     
-    // Disconnect Bluetooth
-    if (typeof disconnectMicrobit === 'function') {
-        disconnectMicrobit();
+    return date.toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+    });
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('statusToast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+
+// Home
+document.getElementById('newModelBtn').addEventListener('click', showNewModelModal);
+
+// Modal
+document.getElementById('closeModalBtn').addEventListener('click', hideModal);
+document.getElementById('cancelModalBtn').addEventListener('click', hideModal);
+document.getElementById('saveModelBtn').addEventListener('click', saveNewModel);
+document.getElementById('modelUrlInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') saveNewModel();
+});
+
+// Processing
+document.getElementById('backBtn').addEventListener('click', () => {
+    stopPredictions();
+    if (isConnected()) disconnectMicrobit();
+    showScreen('homeScreen');
+});
+
+document.getElementById('connectBtn').addEventListener('click', async () => {
+    try {
+        await connectMicrobit();
+        document.getElementById('connectBtn').style.display = 'none';
+        document.getElementById('disconnectBtn').style.display = 'inline-block';
+        document.getElementById('connectionBadge').textContent = 'Conectado';
+        document.getElementById('connectionBadge').className = 'badge badge-connected';
+        showToast('Conectado', 'success');
+    } catch (error) {
+        showToast('Error al conectar', 'error');
     }
-}
+});
 
-// Initialize app when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
-}
+document.getElementById('disconnectBtn').addEventListener('click', () => {
+    disconnectMicrobit();
+    document.getElementById('connectBtn').style.display = 'inline-block';
+    document.getElementById('disconnectBtn').style.display = 'none';
+    document.getElementById('connectionBadge').textContent = 'Desconectado';
+    document.getElementById('connectionBadge').className = 'badge badge-disconnected';
+    showToast('Desconectado', 'info');
+});
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', cleanup);
+// ============================================
+// INIT
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderModels();
+    console.log('🚀 TM + micro:bit ready');
+});
+
+export { showToast };
+

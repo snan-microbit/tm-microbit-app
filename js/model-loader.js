@@ -1,48 +1,37 @@
-// model-loader.js
-// Handles loading and detecting Teachable Machine models
+/**
+ * model-loader.js
+ * Handles loading Teachable Machine models
+ */
 
 let model = null;
 let maxPredictions = 0;
 let modelType = null;
 
 /**
- * Detect model type from URL pattern
+ * Detect model type from URL
  */
 function detectModelTypeFromURL(url) {
     if (url.includes('/image/')) return 'image';
-    if (url.includes('/audio/')) return 'audio';
     if (url.includes('/pose/')) return 'pose';
     return null;
 }
 
 /**
- * Detect model type from metadata.json
+ * Detect model type from metadata
  */
 async function detectModelTypeFromMetadata(baseURL) {
     try {
-        const metadataURL = baseURL + 'metadata.json';
-        console.log('Intentando cargar metadata desde:', metadataURL);
-        
-        const response = await fetch(metadataURL);
-        
-        if (!response.ok) {
-            console.error('Error HTTP:', response.status, response.statusText);
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        const response = await fetch(baseURL + 'metadata.json');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const metadata = await response.json();
-        console.log('Metadata cargada:', metadata);
         
-        // Detect type from metadata structure
-        if (metadata.tfjsVersion) {
-            if (metadata.packageVersion && metadata.packageVersion.includes('pose')) {
-                return 'pose';
-            }
-            return 'image';
+        if (metadata.packageVersion && metadata.packageVersion.includes('pose')) {
+            return 'pose';
         }
-        return null;
+        return 'image';
     } catch (error) {
-        console.error('Error detectando tipo desde metadata:', error);
+        console.error('Error detecting model type:', error);
         throw error;
     }
 }
@@ -50,83 +39,32 @@ async function detectModelTypeFromMetadata(baseURL) {
 /**
  * Load Teachable Machine model
  */
-async function loadModel() {
-    const modelURL = document.getElementById('modelURL').value.trim();
-    
-    if (!modelURL) {
-        showStatus('modelStatus', 'Por favor ingresa una URL válida', 'error');
-        return;
-    }
-
-    showStatus('modelStatus', 'Detectando tipo de modelo...', 'info');
-
-    // Normalize URL
+async function loadModel(modelURL) {
     let modelPath = modelURL.endsWith('/') ? modelURL : modelURL + '/';
     
-    // Try to detect from URL first
+    // Detect type
     modelType = detectModelTypeFromURL(modelURL);
-    
-    // If not detected, try from metadata
     if (!modelType) {
-        try {
-            modelType = await detectModelTypeFromMetadata(modelPath);
-        } catch (metadataError) {
-            showStatus('modelStatus', `❌ Error al acceder al modelo: ${metadataError.message}. Verifica que el modelo esté exportado y publicado correctamente.`, 'error');
-            return;
-        }
+        modelType = await detectModelTypeFromMetadata(modelPath);
     }
     
     if (!modelType) {
-        showStatus('modelStatus', 'No se pudo detectar el tipo de modelo. Asegúrate de haber exportado el modelo usando "Upload my model" en Teachable Machine.', 'error');
-        return;
+        throw new Error('No se pudo detectar el tipo de modelo');
     }
 
-    showStatus('modelStatus', `Cargando modelo de ${modelType}...`, 'info');
+    const metadataURL = modelPath + 'metadata.json';
+    const modelJsonURL = modelPath + 'model.json';
 
-    try {
-        const metadataURL = modelPath + 'metadata.json';
-        const modelJsonURL = modelPath + 'model.json';
-
-        if (modelType === 'image') {
-            model = await tmImage.load(modelJsonURL, metadataURL);
-            maxPredictions = model.getTotalClasses();
-            await setupWebcam();
-        } else if (modelType === 'pose') {
-            model = await tmPose.load(modelJsonURL, metadataURL);
-            maxPredictions = model.getTotalClasses();
-            await setupPoseWebcam();
-        } else if (modelType === 'audio') {
-            showStatus('modelStatus', 'Los modelos de audio requieren implementación adicional', 'error');
-            return;
-        }
-
-        showStatus('modelStatus', `✅ Modelo de ${modelType} cargado correctamente`, 'success');
-        
-        // Navegar automáticamente a la pantalla de procesamiento
-        setTimeout(() => {
-            goToProcessing();
-        }, 800);
-        
-    } catch (error) {
-        console.error('Error al cargar el modelo:', error);
-        showStatus('modelStatus', 'Error al cargar el modelo. Verifica que la URL sea correcta y que el modelo esté publicado.', 'error');
+    if (modelType === 'image') {
+        model = await tmImage.load(modelJsonURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+    } else if (modelType === 'pose') {
+        model = await tmPose.load(modelJsonURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
     }
-}
 
-/**
- * Display model information
- */
-function showModelInfo() {
-    const info = document.getElementById('modelInfo');
-    if (!info) return; // Element doesn't exist, skip
-    
-    info.innerHTML = `
-        <div class="model-info">
-            <h3>📊 Información del modelo</h3>
-            <p><strong>Tipo:</strong> ${modelType}</p>
-            <p><strong>Clases:</strong> ${maxPredictions}</p>
-        </div>
-    `;
+    console.log(`✅ Model loaded: ${modelType}, ${maxPredictions} classes`);
+    return model;
 }
 
 /**
@@ -149,3 +87,5 @@ function getModelType() {
 function getMaxPredictions() {
     return maxPredictions;
 }
+
+export { loadModel, getModel, getModelType, getMaxPredictions };

@@ -4,145 +4,97 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Conecta modelos de Teachable Machine con micro:bit vía Bluetooth">
-    <meta name="theme-color" content="#4C52AF">
-    <title>Teachable Machine + micro:bit</title>
+    <meta name="theme-color" content="#5C2D91">
+    <title>TM + micro:bit</title>
     
-    <!-- PWA Manifest -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Styles -->
     <link rel="stylesheet" href="css/styles.css">
     
-    <!-- TensorFlow.js and Teachable Machine -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@latest/dist/teachablemachine-pose.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- SCREEN 1: HOME - Load Model -->
-        <div id="screen-home" class="screen active">
+    <!-- HOME SCREEN -->
+    <div class="screen" id="homeScreen">
+        <div class="container">
             <header class="header">
-                <h1>🤖 Teachable Machine + micro:bit</h1>
-                <p>Conecta tu modelo de ML con tu micro:bit</p>
+                <h1>🤖 TM + micro:bit</h1>
+                <p class="subtitle">Conecta modelos de Teachable Machine con tu micro:bit</p>
             </header>
 
-            <section class="card">
-                <div class="step">
-                    <div class="step-title">
-                        <span class="step-number">1</span>
-                        Carga tu modelo de Teachable Machine
-                    </div>
-                    <input 
-                        type="text" 
-                        id="modelURL" 
-                        placeholder="https://teachablemachine.withgoogle.com/models/TU_MODELO_AQUI/"
-                        aria-label="URL del modelo de Teachable Machine"
-                    >
-                    <p class="help-text">💡 Acepta cualquier URL de Teachable Machine (imagen, audio o poses)</p>
-                    <button class="button button-primary" id="loadModelBtn" aria-label="Cargar modelo">
-                        Cargar Modelo
-                    </button>
-                    <div id="modelStatus" role="status" aria-live="polite"></div>
+            <button class="btn-primary btn-large" id="newModelBtn">
+                ➕ Nuevo Modelo
+            </button>
+
+            <section class="models-library">
+                <h2>Mis Modelos</h2>
+                <div id="modelsList" class="models-grid"></div>
+                <div id="emptyState" class="empty-state">
+                    <p>📭 No hay modelos guardados</p>
+                    <p class="empty-hint">Haz clic en "Nuevo Modelo" para empezar</p>
                 </div>
-            </section>
-
-            <section class="card info-card">
-                <h3>📋 ¿Cómo usar esta app?</h3>
-                <ol>
-                    <li>Entrena tu modelo en <a href="https://teachablemachine.withgoogle.com/" target="_blank">Teachable Machine</a></li>
-                    <li>Exporta y sube tu modelo ("Upload my model")</li>
-                    <li>Copia el link y pégalo arriba</li>
-                    <li>Conecta tu micro:bit vía Bluetooth</li>
-                    <li>¡Tu micro:bit recibirá las predicciones!</li>
-                </ol>
-            </section>
-        </div>
-
-        <!-- SCREEN 2: PROCESSING - Model Running -->
-        <div id="screen-processing" class="screen">
-            <header class="header-compact">
-                <div class="header-content">
-                    <h2>🎥 Predicciones en tiempo real</h2>
-                    <button class="button button-small button-secondary" id="changeModelBtn">
-                        🔄 Cambiar modelo
-                    </button>
-                </div>
-                <div id="modelInfoCompact" class="model-info-compact"></div>
-            </header>
-
-            <section class="card">
-                <!-- Webcam / Pose Container -->
-                <div id="webcam-container"></div>
-                <div id="audio-container"></div>
-                <div id="pose-container"></div>
-
-                <!-- Predictions Display -->
-                <div class="prediction-box" id="predictions"></div>
-            </section>
-
-            <!-- Bluetooth Connection Card -->
-            <section class="card connection-card">
-                <div class="connection-header">
-                    <div class="connection-title">
-                        <span class="step-number">2</span>
-                        <h3>Conexión micro:bit</h3>
-                    </div>
-                    <div id="connectionStatusBadge" class="status-badge disconnected">
-                        Desconectado
-                    </div>
-                </div>
-
-                <!-- Flow Control Settings - ANTES de conectar -->
-                <div class="flow-control-settings" id="flowControlSettings">
-                    <h4>⚙️ Modo de envío de datos</h4>
-                    <div class="flow-options">
-                        <label class="radio-option">
-                            <input type="radio" name="flowMode" value="max">
-                            <div class="option-content">
-                                <strong>🚀 Flujo máximo</strong>
-                                <p>Envía todos los frames sin filtros (~20-30 msg/seg)</p>
-                            </div>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="flowMode" value="controlled" checked>
-                            <div class="option-content">
-                                <strong>🤝 Controlado por micro:bit</strong>
-                                <p>Espera confirmación del micro:bit antes del siguiente envío</p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="connection-actions">
-                    <button class="button button-success" id="connectBtn" aria-label="Conectar micro:bit">
-                        🔗 Conectar micro:bit
-                    </button>
-                    <button class="button button-danger" id="disconnectBtn" style="display: none;" aria-label="Desconectar micro:bit">
-                        ❌ Desconectar
-                    </button>
-                    <button class="button button-primary" id="testBtn" style="display: none;" aria-label="Enviar mensaje de prueba">
-                        🧪 Enviar TEST
-                    </button>
-                </div>
-
-                <div id="bluetoothStatus" role="status" aria-live="polite"></div>
-                
-                <div class="bluetooth-info" style="display: none;" id="bluetoothHelp">
-                    <strong>⚡ Importante:</strong> Asegúrate de que tu micro:bit tenga un programa que pueda recibir datos por Bluetooth (UART service).
-                </div>
-
-                <div id="sentMessages"></div>
             </section>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/model-loader.js"></script>
-    <script src="js/bluetooth.js"></script>
-    <script src="js/predictions.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/navigation.js"></script>
-    <script src="js/app.js"></script>
+    <!-- PROCESSING SCREEN -->
+    <div class="screen" id="processingScreen" style="display: none;">
+        <div class="processing-layout">
+            <header class="processing-header">
+                <button class="btn-back" id="backBtn">← Volver</button>
+                <h2 id="modelName">Modelo</h2>
+                <div class="connection-status">
+                    <span id="connectionBadge" class="badge badge-disconnected">Desconectado</span>
+                </div>
+            </header>
+
+            <div class="processing-content">
+                <div class="webcam-container">
+                    <div id="webcam-wrapper"></div>
+                </div>
+
+                <div class="predictions-panel">
+                    <h3>Predicciones</h3>
+                    <div id="predictions"></div>
+                </div>
+            </div>
+
+            <div class="processing-actions">
+                <button class="btn-connect" id="connectBtn">🔗 Conectar micro:bit</button>
+                <button class="btn-disconnect" id="disconnectBtn" style="display: none;">❌ Desconectar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW MODEL MODAL -->
+    <div class="modal" id="newModelModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuevo Modelo</h3>
+                <button class="modal-close" id="closeModalBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="modelNameInput">Nombre del modelo</label>
+                    <input type="text" id="modelNameInput" placeholder="Ej: Reconocedor de gestos" class="input-text">
+                </div>
+                <div class="form-group">
+                    <label for="modelUrlInput">URL del modelo de Teachable Machine</label>
+                    <input type="url" id="modelUrlInput" placeholder="https://teachablemachine.withgoogle.com/models/..." class="input-text">
+                    <small class="input-hint">Pega la URL completa de tu modelo exportado</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelModalBtn">Cancelar</button>
+                <button class="btn-primary" id="saveModelBtn">Guardar y Usar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusToast" class="toast"></div>
+
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,72 +1,13 @@
-// ui.js
-// UI utility functions
-
 /**
- * Show status message
- * @param {string} elementId - ID of the element to show status in
- * @param {string} message - Message to display
- * @param {string} type - Type of status: 'info', 'success', or 'error'
+ * ui.js
+ * Legacy compatibility - functionality moved to app.js
+ * 
+ * En la versión rediseñada, los utilities UI se manejan directamente
+ * en app.js con showToast(). Este archivo existe solo para
+ * compatibilidad si algo lo referencia.
  */
-function showStatus(elementId, message, type) {
-    const element = document.getElementById(elementId);
-    const statusClass = `status-${type}`;
-    element.innerHTML = `
-        <div class="status ${statusClass}">
-            <span class="status-indicator"></span>
-            ${message}
-        </div>
-    `;
-}
 
-/**
- * Clear status message
- */
-function clearStatus(elementId) {
-    const element = document.getElementById(elementId);
-    element.innerHTML = '';
-}
+// Empty - not needed in redesigned version
+// UI utilities are handled directly in app.js (showToast, etc.)
 
-/**
- * Show loading state
- */
-function showLoading(elementId, message = 'Cargando...') {
-    showStatus(elementId, message, 'info');
-}
-
-/**
- * Enable/disable button
- */
-function setButtonEnabled(buttonId, enabled) {
-    const button = document.getElementById(buttonId);
-    if (button) {
-        button.disabled = !enabled;
-    }
-}
-
-/**
- * Show/hide element
- */
-function toggleElement(elementId, show) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.style.display = show ? 'block' : 'none';
-    }
-}
-
-/**
- * Get input value
- */
-function getInputValue(inputId) {
-    const input = document.getElementById(inputId);
-    return input ? input.value.trim() : '';
-}
-
-/**
- * Set input value
- */
-function setInputValue(inputId, value) {
-    const input = document.getElementById(inputId);
-    if (input) {
-        input.value = value;
-    }
-}
+console.log('ℹ️ ui.js: Funcionalidad movida a app.js');
