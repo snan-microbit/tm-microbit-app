@@ -47,7 +47,6 @@ body {
 }
 
 .screen {
-    min-height: 100vh;
     display: block;
 }
 
@@ -223,6 +222,7 @@ body {
 
 .processing-layout {
     min-height: 100vh;
+    max-height: 100vh;
     display: flex;
     flex-direction: column;
 }
@@ -343,8 +343,8 @@ body {
     box-shadow: var(--shadow);
     padding: 1rem;
     overflow-y: auto;
-    flex: 1;
-    min-height: 200px;
+    flex: 1 1 auto;
+    min-height: 0; /* Importante para que flex funcione correctamente */
 }
 
 .predictions-panel h3 {
