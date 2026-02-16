@@ -545,8 +545,9 @@ body {
 
 .toast {
     position: fixed;
-    /* Ubicación a 1/3 de la pantalla desde arriba */
-    top: 33.33%; 
+    /* Alineado con el título "Predicciones" */
+    /* Header (~60px) + padding-top del content (1rem = 16px) + padding del panel (1rem = 16px) */
+    top: calc(60px + 1rem + 1rem); 
     right: 1rem;
     /* Eliminamos el left: 1rem para que no ocupe todo el ancho y pueda deslizar */
     width: auto; 
@@ -594,7 +595,8 @@ body {
     }
     
     .toast {
-        left: auto;
+        /* En desktop, el header es más grande y hay más padding */
+        top: calc(60px + 1.5rem + 1rem);
         right: 1.5rem;
         max-width: 400px;
     }
