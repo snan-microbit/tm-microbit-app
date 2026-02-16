@@ -56,10 +56,10 @@ async function loadModel(modelURL) {
     const modelJsonURL = modelPath + 'model.json';
 
     if (modelType === 'image') {
-        model = await tmImage.load(modelJsonURL, metadataURL);
+        model = await window.tmImage.load(modelJsonURL, metadataURL);
         maxPredictions = model.getTotalClasses();
     } else if (modelType === 'pose') {
-        model = await tmPose.load(modelJsonURL, metadataURL);
+        model = await window.tmPose.load(modelJsonURL, metadataURL);
         maxPredictions = model.getTotalClasses();
     }
 

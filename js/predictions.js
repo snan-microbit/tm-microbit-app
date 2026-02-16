@@ -40,7 +40,7 @@ function stopPredictions() {
  */
 async function setupWebcam() {
     try {
-        webcam = new tmImage.Webcam(400, 400, true);
+        webcam = new window.tmImage.Webcam(400, 400, true);
         await webcam.setup();
         await webcam.play();
         
@@ -57,7 +57,7 @@ async function setupWebcam() {
  */
 async function setupPoseWebcam() {
     try {
-        webcam = new tmPose.Webcam(400, 400, true);
+        webcam = new window.tmPose.Webcam(400, 400, true);
         await webcam.setup();
         await webcam.play();
         
