@@ -9,10 +9,12 @@ let lastSentClass = '';
 let lastSentConfidence = 0;
 let lastSendTime = 0;
 let readyToSend = true;  // Flag para control de flujo
+let keepAliveInterval = null;  // Interval para keep-alive
 
 // Configuración de flujo
 let FLOW_CONTROL_ENABLED = true;  // true por defecto (modo controlado)
 const MIN_SEND_INTERVAL = 0;  // 0 = sin límite de velocidad
+const KEEP_ALIVE_INTERVAL = 120000;  // 2 minutos (120 segundos)
 
 // UART Service UUID for micro:bit
 const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
@@ -113,6 +115,9 @@ async function connectMicrobit() {
         // Update connection badge
         updateConnectionBadge(true, microbitDevice.name);
         
+        // Start keep-alive heartbeat to prevent 3-minute timeout
+        startKeepAlive();
+        
         // Update UI
         document.getElementById('connectBtn').style.display = 'none';
         document.getElementById('disconnectBtn').style.display = 'inline-block';
@@ -156,6 +161,9 @@ function onDisconnected() {
     txCharacteristic = null;
     rxCharacteristic = null;
     microbitDevice = null;
+    
+    // Stop keep-alive
+    stopKeepAlive();
     
     showStatus('bluetoothStatus', 'Desconectado', 'info');
     updateConnectionBadge(false);
@@ -291,5 +299,45 @@ function setFlowControlMode(enabled) {
     } else {
         console.log('🚀 Flujo máximo habilitado');
         console.log('ℹ️ Se enviarán todos los frames sin esperar confirmación');
+    }
+}
+
+/**
+ * Start keep-alive heartbeat to prevent 3-minute Bluetooth timeout
+ */
+function startKeepAlive() {
+    // Clear any existing interval
+    stopKeepAlive();
+    
+    console.log('💓 Iniciando keep-alive (cada 2 minutos)');
+    
+    keepAliveInterval = setInterval(() => {
+        if (txCharacteristic && microbitDevice?.gatt?.connected) {
+            // Send empty message as heartbeat
+            const encoder = new TextEncoder();
+            const ping = encoder.encode('\n');  // Solo newline
+            
+            txCharacteristic.writeValueWithoutResponse(ping)
+                .then(() => {
+                    console.log('💓 Keep-alive ping enviado');
+                })
+                .catch(err => {
+                    console.warn('⚠️ Keep-alive ping falló:', err);
+                });
+        } else {
+            // No connection, stop keep-alive
+            stopKeepAlive();
+        }
+    }, KEEP_ALIVE_INTERVAL);
+}
+
+/**
+ * Stop keep-alive heartbeat
+ */
+function stopKeepAlive() {
+    if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
+        keepAliveInterval = null;
+        console.log('💓 Keep-alive detenido');
     }
 }
