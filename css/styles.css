@@ -28,7 +28,7 @@ body {
     background: var(--bg);
     color: var(--text);
     line-height: 1.6;
-    font-size: 16px;
+    font-size: 18px; /* Aumentado de 16px a 18px */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -37,7 +37,7 @@ body {
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: 2rem; /* Aumentado de 1.5rem */
 }
 
 .screen {
@@ -58,20 +58,20 @@ body {
 /* HOME SCREEN */
 .header {
     text-align: center;
-    margin-bottom: 2rem;
-    padding-top: 1rem;
+    margin-bottom: 2.5rem;
+    padding-top: 1.5rem;
 }
 
 .header h1 {
-    font-size: 2rem;
+    font-size: 2.5rem; /* Aumentado de 2rem */
     font-weight: 800;
     color: var(--primary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     letter-spacing: -0.5px;
 }
 
 .subtitle {
-    font-size: 1rem;
+    font-size: 1.2rem; /* Aumentado de 1rem */
     color: var(--text-light);
     font-weight: 400;
 }
@@ -81,14 +81,14 @@ body {
     background: var(--primary);
     color: white;
     border: none;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    font-size: 1.1rem;
+    padding: 1.25rem 2rem; /* Aumentado */
+    border-radius: 16px; /* Más redondeado */
+    font-size: 1.3rem; /* Aumentado de 1.1rem */
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: var(--shadow-lg);
-    min-height: 56px;
+    min-height: 64px; /* Aumentado de 56px */
     touch-action: manipulation;
 }
 
@@ -101,9 +101,10 @@ body {
     display: block;
     width: 100%;
     max-width: 500px;
-    margin: 0 auto 2rem;
-    padding: 1.25rem 2rem;
-    font-size: 1.25rem;
+    margin: 0 auto 2.5rem;
+    padding: 1.5rem 2rem; /* Aumentado */
+    font-size: 1.4rem; /* Aumentado de 1.25rem */
+    min-height: 72px; /* Aumentado */
 }
 
 .btn-secondary {
@@ -128,7 +129,7 @@ body {
 
 /* Models Library */
 .models-library h2 {
-    font-size: 1.5rem;
+    font-size: 1.8rem; /* Aumentado de 1.5rem */
     margin-bottom: 1.5rem;
     font-weight: 700;
     color: var(--text);
@@ -219,17 +220,17 @@ body {
 
 .empty-state {
     text-align: center;
-    padding: 3rem 1.5rem;
+    padding: 4rem 2rem; /* Más padding */
     color: var(--text-light);
 }
 
 .empty-state p:first-child {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
+    font-size: 4rem; /* Aumentado de 3.5rem */
+    margin-bottom: 1.5rem;
 }
 
 .empty-hint {
-    font-size: 1rem;
+    font-size: 1.2rem; /* Aumentado de 1rem */
 }
 
 /* PROCESSING SCREEN */
