@@ -1,11 +1,13 @@
 /**
  * predictions.js
- * Handles webcam and predictions
+ * Manages webcam, audio, and model predictions
+ * Supports image, pose, and audio models from Teachable Machine
  */
 
 import { getModel, getModelType } from './model-loader.js';
 import { sendToMicrobit, isConnected } from './bluetooth.js';
 
+// State
 let webcam = null;
 let isRunning = false;
 let audioContext = null;
@@ -13,12 +15,11 @@ let analyser = null;
 let microphone = null;
 
 /**
- * Start predictions
+ * Start predictions based on model type
  */
 async function startPredictions() {
     const modelType = getModelType();
-    
-    isRunning = true; // Set to true BEFORE setup
+    isRunning = true;
     
     if (modelType === 'image') {
         await setupWebcam();
@@ -30,18 +31,18 @@ async function startPredictions() {
 }
 
 /**
- * Stop predictions
+ * Stop all predictions and cleanup resources
  */
 function stopPredictions() {
     isRunning = false;
     
-    // Stop webcam
+    // Cleanup webcam
     if (webcam) {
         webcam.stop();
         webcam = null;
     }
     
-    // Stop audio
+    // Cleanup audio
     if (microphone) {
         microphone.getTracks().forEach(track => track.stop());
         microphone = null;
@@ -52,7 +53,7 @@ function stopPredictions() {
         audioContext = null;
     }
     
-    // Stop audio model listening
+    // Stop audio model
     const model = getModel();
     const modelType = getModelType();
     if (model && modelType === 'audio' && model.stopListening) {
@@ -61,7 +62,7 @@ function stopPredictions() {
 }
 
 /**
- * Setup webcam for image models
+ * Setup webcam for image classification models
  */
 async function setupWebcam() {
     try {
@@ -78,7 +79,7 @@ async function setupWebcam() {
 }
 
 /**
- * Setup webcam for pose models
+ * Setup webcam for pose detection models
  */
 async function setupPoseWebcam() {
     try {
@@ -86,6 +87,7 @@ async function setupPoseWebcam() {
         await webcam.setup();
         await webcam.play();
         
+        // Create overlay canvas for skeleton drawing
         const canvas = document.createElement('canvas');
         canvas.width = 400;
         canvas.height = 400;
@@ -102,23 +104,23 @@ async function setupPoseWebcam() {
 }
 
 /**
- * Setup audio for audio models
+ * Setup audio for voice/sound classification models
  */
 async function setupAudio() {
     try {
-        console.log('🎤 Configurando audio...');
+        console.log('🎤 Setting up audio...');
         
-        // Create canvas for visualization
+        // Create visualization canvas
         const canvas = document.createElement('canvas');
         canvas.width = 400;
         canvas.height = 400;
         canvas.id = 'audio-visualizer';
         
         const wrapper = document.getElementById('webcam-wrapper');
-        wrapper.innerHTML = ''; // Clear any existing content
+        wrapper.innerHTML = '';
         wrapper.appendChild(canvas);
         
-        // Setup audio context and analyser for visualization
+        // Setup audio context for visualization
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         microphone = stream;
         
@@ -132,39 +134,19 @@ async function setupAudio() {
         // Start visualization
         window.requestAnimationFrame(visualizeAudio);
         
-        // Start audio predictions
+        // Start audio model listening
         const model = getModel();
-        console.log('🎤 Iniciando escucha de audio...');
+        console.log('🎤 Starting audio recognition...');
         
-        // Start listening
         await model.listen(result => {
-            console.log('🎤 Audio result:', result);
-            
-            // Convert result to predictions format
-            // result.scores is a Float32Array
             const wordLabels = model.wordLabels();
-            console.log('📝 Word labels:', wordLabels);
-            
-            if (!result.scores) {
-                console.error('❌ result.scores no existe:', result);
-                return;
-            }
-            
-            // Convert Float32Array to regular array
             const scoresArray = Array.from(result.scores);
-            console.log('📈 Scores array:', scoresArray);
             
-            const predictions = scoresArray.map((score, i) => {
-                const className = wordLabels[i] || `Clase ${i}`;
-                const probability = typeof score === 'number' ? score : 0;
-                
-                return {
-                    className: className,
-                    probability: probability
-                };
-            });
+            const predictions = scoresArray.map((score, i) => ({
+                className: wordLabels[i] || `Class ${i}`,
+                probability: score
+            }));
             
-            console.log('📊 Predictions:', predictions);
             displayPredictions(predictions);
         }, {
             includeSpectrogram: false,
@@ -173,8 +155,7 @@ async function setupAudio() {
             overlapFactor: 0.5
         });
         
-        console.log('✅ Audio configurado correctamente');
-        console.log('🎨 Visualización iniciada - isRunning:', isRunning, 'analyser:', !!analyser, 'canvas:', !!document.getElementById('audio-visualizer'));
+        console.log('✅ Audio configured');
     } catch (error) {
         console.error('Audio setup error:', error);
         throw error;
@@ -182,19 +163,14 @@ async function setupAudio() {
 }
 
 /**
- * Visualize audio as bars (like music equalizer)
+ * Visualize audio as frequency bars
+ * Optimized for human voice (80Hz - 8000Hz)
  */
 function visualizeAudio() {
-    if (!isRunning || !analyser) {
-        console.log('⚠️ Visualización detenida - isRunning:', isRunning, 'analyser:', !!analyser);
-        return;
-    }
+    if (!isRunning || !analyser) return;
     
     const canvas = document.getElementById('audio-visualizer');
-    if (!canvas) {
-        console.warn('⚠️ Canvas audio-visualizer no encontrado');
-        return;
-    }
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     const bufferLength = analyser.frequencyBinCount;
@@ -202,21 +178,21 @@ function visualizeAudio() {
     
     analyser.getByteFrequencyData(dataArray);
     
-    // Clear canvas with same background as container (white)
+    // Clear with white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    const barCount = 32; // Number of bars
-    const barWidth = (canvas.width / barCount) * 0.9; // Wider bars (0.9 instead of 0.7)
-    const barGap = (canvas.width / barCount) * 0.1;   // Smaller gap (0.1 instead of 0.3)
-    const borderRadius = barWidth / 2; // Rounded ends
+    const barCount = 32;
+    const barWidth = (canvas.width / barCount) * 0.9;
+    const barGap = (canvas.width / barCount) * 0.1;
+    const borderRadius = barWidth / 2;
     
-    // Calculate total width of bars area
+    // Calculate bar area bounds
     const totalBarsWidth = barCount * (barWidth + barGap);
     const startX = barGap / 2;
     const endX = startX + totalBarsWidth - barGap;
     
-    // Draw center line only where bars are
+    // Draw center line
     const centerY = canvas.height / 2;
     ctx.strokeStyle = '#e0e0e0';
     ctx.lineWidth = 1;
@@ -225,41 +201,35 @@ function visualizeAudio() {
     ctx.lineTo(endX, centerY);
     ctx.stroke();
     
-    // Focus on vocal range: ~80Hz to 8000Hz
-    // Assuming sample rate of 44100 Hz, Nyquist frequency is 22050 Hz
-    // Each bin represents: 22050 / bufferLength Hz
+    // Focus on vocal frequency range (80Hz - 8000Hz)
     const binFrequency = 22050 / bufferLength;
-    const minFreq = 80;    // Hz - lowest vocal frequency
-    const maxFreq = 8000;  // Hz - upper vocal range
-    
+    const minFreq = 80;
+    const maxFreq = 8000;
     const minBin = Math.floor(minFreq / binFrequency);
     const maxBin = Math.floor(maxFreq / binFrequency);
     const usefulBins = maxBin - minBin;
     
+    // Draw bars
     for (let i = 0; i < barCount; i++) {
-        // Map bar to frequency range (80Hz - 8000Hz)
         const start = minBin + Math.floor((i * usefulBins) / barCount);
         const end = minBin + Math.floor(((i + 1) * usefulBins) / barCount);
         
-        // Average frequency data for this bar
+        // Average frequency data
         let sum = 0;
         for (let j = start; j < end; j++) {
             sum += dataArray[j];
         }
         const average = sum / (end - start);
         
-        // Calculate bar height (half goes up, half goes down)
-        // Amplify visualization for better visibility
         const fullBarHeight = (average / 255) * canvas.height * 0.85;
         const halfBarHeight = fullBarHeight / 2;
-        
         const x = i * (barWidth + barGap) + barGap / 2;
         
-        // Draw bar going UP from center
+        // Draw bar up
         const yUp = centerY - halfBarHeight;
         drawRoundedBar(ctx, x, yUp, barWidth, halfBarHeight, borderRadius, true);
         
-        // Draw bar going DOWN from center
+        // Draw bar down
         const yDown = centerY;
         drawRoundedBar(ctx, x, yDown, barWidth, halfBarHeight, borderRadius, false);
     }
@@ -271,20 +241,16 @@ function visualizeAudio() {
  * Draw a rounded bar with gradient
  */
 function drawRoundedBar(ctx, x, y, width, height, radius, isUp) {
-    if (height < 2) return; // Don't draw very small bars
+    if (height < 2) return;
     
-    // Create gradient
     const gradient = ctx.createLinearGradient(0, isUp ? y : y, 0, isUp ? y + height : y + height);
     gradient.addColorStop(0, '#009f95');
     gradient.addColorStop(1, '#4169B8');
     
     ctx.fillStyle = gradient;
-    
-    // Draw rounded rectangle
     ctx.beginPath();
     
     if (isUp) {
-        // Bar going UP - rounded top
         ctx.moveTo(x, y + height);
         ctx.lineTo(x, y + radius);
         ctx.arcTo(x, y, x + width, y, radius);
@@ -292,7 +258,6 @@ function drawRoundedBar(ctx, x, y, width, height, radius, isUp) {
         ctx.arcTo(x + width, y, x + width, y + height, radius);
         ctx.lineTo(x + width, y + height);
     } else {
-        // Bar going DOWN - rounded bottom
         ctx.moveTo(x, y);
         ctx.lineTo(x, y + height - radius);
         ctx.arcTo(x, y + height, x + width, y + height, radius);
@@ -339,7 +304,7 @@ async function predictImage() {
 }
 
 /**
- * Predict for pose model
+ * Predict for pose model and draw skeleton
  */
 async function predictPose() {
     const model = getModel();
@@ -348,7 +313,7 @@ async function predictPose() {
     const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
     const prediction = await model.predict(posenetOutput);
     
-    // Draw pose
+    // Draw pose skeleton on overlay canvas
     const canvas = document.getElementById('webcam-wrapper').querySelectorAll('canvas')[1];
     if (canvas && pose) {
         const ctx = canvas.getContext('2d');
@@ -363,7 +328,7 @@ async function predictPose() {
 }
 
 /**
- * Draw pose skeleton
+ * Draw pose skeleton (keypoints and connections)
  */
 function drawPose(pose, ctx) {
     if (!pose.keypoints) return;
@@ -378,7 +343,7 @@ function drawPose(pose, ctx) {
         }
     });
     
-    // Draw skeleton
+    // Draw skeleton connections
     const skeleton = [
         [5, 6], [5, 7], [7, 9], [6, 8], [8, 10],
         [5, 11], [6, 12], [11, 12],
@@ -401,19 +366,18 @@ function drawPose(pose, ctx) {
 }
 
 /**
- * Display predictions in UI
+ * Display predictions in UI and send to micro:bit
  */
 function displayPredictions(predictions) {
     const container = document.getElementById('predictions');
     if (!container) return;
     
-    // Validar que las predicciones sean válidas
     if (!predictions || !Array.isArray(predictions)) {
-        console.error('❌ Predictions inválidas:', predictions);
+        console.error('Invalid predictions:', predictions);
         return;
     }
     
-    // Filtrar predicciones con valores inválidos
+    // Filter valid predictions
     const validPredictions = predictions.filter(pred => {
         return pred.className && 
                typeof pred.probability === 'number' && 
@@ -422,14 +386,14 @@ function displayPredictions(predictions) {
     });
     
     if (validPredictions.length === 0) {
-        console.warn('⚠️ No hay predicciones válidas');
+        console.warn('No valid predictions');
         return;
     }
     
     // Sort by confidence
     const sorted = validPredictions.slice().sort((a, b) => b.probability - a.probability);
     
-    // Display top predictions
+    // Display in UI
     container.innerHTML = sorted.map((pred, index) => {
         const percentage = (pred.probability * 100).toFixed(1);
         const isTop = index === 0;
@@ -447,15 +411,19 @@ function displayPredictions(predictions) {
         `;
     }).join('');
     
-    // Send top prediction to micro:bit if connected
+    // Send to micro:bit (skip background noise)
     if (isConnected() && sorted.length > 0) {
         const top = sorted[0];
-        sendToMicrobit(top.className, top.probability * 100);
+        
+        if (top.className.toLowerCase() !== 'ruido de fondo') {
+            sendToMicrobit(top.className, top.probability * 100);
+        }
     }
 }
 
 /**
- * Handle page visibility
+ * Handle page visibility changes
+ * Resume prediction loops when page becomes visible
  */
 document.addEventListener('visibilitychange', function() {
     if (document.hidden) {

@@ -1,6 +1,6 @@
 /**
  * model-loader.js
- * Handles loading Teachable Machine models
+ * Loads and detects Teachable Machine models (image, pose, audio)
  */
 
 let model = null;
@@ -8,7 +8,7 @@ let maxPredictions = 0;
 let modelType = null;
 
 /**
- * Detect model type from URL
+ * Detect model type from URL pattern
  */
 function detectModelTypeFromURL(url) {
     if (url.includes('/image/')) return 'image';
@@ -18,7 +18,7 @@ function detectModelTypeFromURL(url) {
 }
 
 /**
- * Detect model type from metadata
+ * Detect model type from metadata.json
  */
 async function detectModelTypeFromMetadata(baseURL) {
     try {
@@ -27,69 +27,43 @@ async function detectModelTypeFromMetadata(baseURL) {
         
         const metadata = await response.json();
         
-        console.log('📋 Metadata:', metadata);
-        
-        // Detectar por tfjsVersion (modelos de audio usan una versión específica)
-        if (metadata.tfjsVersion) {
-            // Audio models have specific input shape
-            if (metadata.tmSoundModelVersion || metadata.audioSampleRate) {
-                console.log('✅ Detectado como audio por tmSoundModelVersion/audioSampleRate');
-                return 'audio';
-            }
-        }
-        
-        // Detectar por packageVersion
-        if (metadata.packageVersion) {
-            if (metadata.packageVersion.includes('pose')) {
-                console.log('✅ Detectado como pose por packageVersion');
-                return 'pose';
-            }
-            if (metadata.packageVersion.includes('audio')) {
-                console.log('✅ Detectado como audio por packageVersion');
-                return 'audio';
-            }
-        }
-        
-        // Detectar por labels específicos o estructura del modelo
-        if (metadata.modelName === 'audioModel' || metadata.wordLabels) {
-            console.log('✅ Detectado como audio por modelName/wordLabels');
+        // Check for audio-specific fields
+        if (metadata.tmSoundModelVersion || metadata.audioSampleRate || metadata.wordLabels) {
             return 'audio';
         }
         
-        // Intentar detectar por la estructura del model.json
+        // Check packageVersion
+        if (metadata.packageVersion) {
+            if (metadata.packageVersion.includes('pose')) return 'pose';
+            if (metadata.packageVersion.includes('audio')) return 'audio';
+        }
+        
+        // Check model name
+        if (metadata.modelName === 'audioModel') {
+            return 'audio';
+        }
+        
+        // Fallback: check input shape in model.json
         try {
             const modelResponse = await fetch(baseURL + 'model.json');
             if (modelResponse.ok) {
                 const modelJson = await modelResponse.json();
-                console.log('📋 Model.json:', modelJson);
+                const inputShape = modelJson.modelTopology?.config?.layers?.[0]?.config?.batch_input_shape;
                 
-                // Audio models typically have specific input shapes
-                if (modelJson.modelTopology && modelJson.modelTopology.config) {
-                    const inputShape = modelJson.modelTopology.config.layers?.[0]?.config?.batch_input_shape;
-                    console.log('🔍 Input shape:', inputShape);
+                if (inputShape && inputShape.length === 4) {
+                    const [, height, width, channels] = inputShape;
                     
-                    // Audio models have shape like [null, 43, 232, 1] or similar
-                    // Image models have shape like [null, 224, 224, 3]
-                    if (inputShape && inputShape.length === 4) {
-                        const channels = inputShape[3];
-                        const height = inputShape[1];
-                        const width = inputShape[2];
-                        
-                        // Si los canales son 1 y las dimensiones no son típicas de imagen (224x224)
-                        if (channels === 1 && (height !== 224 || width !== 224)) {
-                            console.log('✅ Detectado como audio por input shape');
-                            return 'audio';
-                        }
+                    // Audio: channels=1, non-standard dimensions
+                    if (channels === 1 && (height !== 224 || width !== 224)) {
+                        return 'audio';
                     }
                 }
             }
         } catch (e) {
-            console.warn('No se pudo analizar model.json:', e);
+            console.warn('Could not analyze model.json:', e);
         }
         
-        // Por defecto es imagen
-        console.log('⚠️ Asumiendo imagen por defecto');
-        return 'image';
+        return 'image'; // Default to image
     } catch (error) {
         console.error('Error detecting model type:', error);
         throw error;
@@ -97,36 +71,35 @@ async function detectModelTypeFromMetadata(baseURL) {
 }
 
 /**
- * Load Teachable Machine model
+ * Load Teachable Machine model from URL
  */
 async function loadModel(modelURL) {
-    // Wait for TM libraries to load
+    // Wait for TM libraries
     let attempts = 0;
     while (!window.tmImage || !window.tmPose) {
         if (attempts > 50) {
-            throw new Error('Las librerías de Teachable Machine no se cargaron');
+            throw new Error('Teachable Machine libraries did not load');
         }
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
     }
     
-    let modelPath = modelURL.endsWith('/') ? modelURL : modelURL + '/';
+    const modelPath = modelURL.endsWith('/') ? modelURL : modelURL + '/';
     
-    // Detect type
+    // Detect model type
     modelType = detectModelTypeFromURL(modelURL);
     if (!modelType) {
         modelType = await detectModelTypeFromMetadata(modelPath);
     }
     
-    console.log('🔍 Tipo de modelo detectado:', modelType);
-    
     if (!modelType) {
-        throw new Error('No se pudo detectar el tipo de modelo');
+        throw new Error('Could not detect model type');
     }
-
-    const metadataURL = modelPath + 'metadata.json';
+    
     const modelJsonURL = modelPath + 'model.json';
-
+    const metadataURL = modelPath + 'metadata.json';
+    
+    // Load model based on type
     if (modelType === 'image') {
         model = await window.tmImage.load(modelJsonURL, metadataURL);
         maxPredictions = model.getTotalClasses();
@@ -134,59 +107,47 @@ async function loadModel(modelURL) {
         model = await window.tmPose.load(modelJsonURL, metadataURL);
         maxPredictions = model.getTotalClasses();
     } else if (modelType === 'audio') {
-        // Wait for speech-commands library with extended timeout
-        console.log('⏳ Esperando librería de audio...');
-        let audioAttempts = 0;
+        // Wait for speech-commands library
+        attempts = 0;
         while (!window.speechCommands) {
-            if (audioAttempts > 100) {
-                console.error('❌ window.speechCommands no está disponible');
-                console.log('🔍 Variables disponibles:', Object.keys(window).filter(k => k.toLowerCase().includes('speech') || k.toLowerCase().includes('audio') || k.includes('tm')));
-                throw new Error('La librería speech-commands no se cargó. Asegúrate de tener conexión a internet.');
+            if (attempts > 100) {
+                throw new Error('Speech Commands library did not load');
             }
             await new Promise(resolve => setTimeout(resolve, 100));
-            audioAttempts++;
+            attempts++;
         }
         
-        console.log('✅ Librería speech-commands cargada');
-        
-        // Create audio recognizer
-        // The baseURL should be the directory containing model.json and metadata.json
-        const recognizer = window.speechCommands.create(
+        model = window.speechCommands.create(
             'BROWSER_FFT',
             undefined,
             modelPath + 'model.json',
             modelPath + 'metadata.json'
         );
         
-        console.log('⏳ Cargando modelo de audio...');
-        await recognizer.ensureModelLoaded();
-        
-        model = recognizer;
+        await model.ensureModelLoaded();
         maxPredictions = model.wordLabels().length;
-        
-        console.log('✅ Modelo de audio cargado, clases:', model.wordLabels());
     }
-
+    
     console.log(`✅ Model loaded: ${modelType}, ${maxPredictions} classes`);
     return model;
 }
 
 /**
- * Get current model
+ * Get current loaded model
  */
 function getModel() {
     return model;
 }
 
 /**
- * Get model type
+ * Get model type (image, pose, or audio)
  */
 function getModelType() {
     return modelType;
 }
 
 /**
- * Get max predictions
+ * Get maximum number of prediction classes
  */
 function getMaxPredictions() {
     return maxPredictions;
