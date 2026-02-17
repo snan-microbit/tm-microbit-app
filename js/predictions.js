@@ -8,6 +8,9 @@ import { sendToMicrobit, isConnected } from './bluetooth.js';
 
 let webcam = null;
 let isRunning = false;
+let audioContext = null;
+let analyser = null;
+let microphone = null;
 
 /**
  * Start predictions
@@ -19,6 +22,8 @@ async function startPredictions() {
         await setupWebcam();
     } else if (modelType === 'pose') {
         await setupPoseWebcam();
+    } else if (modelType === 'audio') {
+        await setupAudio();
     }
     
     isRunning = true;
@@ -32,6 +37,14 @@ function stopPredictions() {
     if (webcam) {
         webcam.stop();
         webcam = null;
+    }
+    if (microphone) {
+        microphone.getTracks().forEach(track => track.stop());
+        microphone = null;
+    }
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
     }
 }
 
@@ -74,6 +87,94 @@ async function setupPoseWebcam() {
         console.error('Pose webcam error:', error);
         throw error;
     }
+}
+
+/**
+ * Setup audio for audio models
+ */
+async function setupAudio() {
+    try {
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        microphone = stream;
+        
+        // Setup audio context and analyser
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        
+        // Create canvas for visualization
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 400;
+        canvas.id = 'audio-visualizer';
+        
+        const wrapper = document.getElementById('webcam-wrapper');
+        wrapper.innerHTML = ''; // Clear any existing content
+        wrapper.appendChild(canvas);
+        
+        // Start audio predictions and visualization
+        const model = getModel();
+        await model.listen(result => {
+            displayPredictions(result);
+        }, { probabilityThreshold: 0.5 });
+        
+        window.requestAnimationFrame(visualizeAudio);
+    } catch (error) {
+        console.error('Audio setup error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Visualize audio as bars (like music equalizer)
+ */
+function visualizeAudio() {
+    if (!isRunning || !analyser) return;
+    
+    const canvas = document.getElementById('audio-visualizer');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    analyser.getByteFrequencyData(dataArray);
+    
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const barCount = 32; // Number of bars
+    const barWidth = (canvas.width / barCount) * 0.8;
+    const barGap = (canvas.width / barCount) * 0.2;
+    
+    for (let i = 0; i < barCount; i++) {
+        // Average frequency data for this bar
+        const start = Math.floor((i * bufferLength) / barCount);
+        const end = Math.floor(((i + 1) * bufferLength) / barCount);
+        let sum = 0;
+        for (let j = start; j < end; j++) {
+            sum += dataArray[j];
+        }
+        const average = sum / (end - start);
+        
+        const barHeight = (average / 255) * canvas.height * 0.8;
+        const x = i * (barWidth + barGap) + barGap / 2;
+        const y = canvas.height - barHeight;
+        
+        // Gradient from turquoise to blue
+        const gradient = ctx.createLinearGradient(0, y, 0, canvas.height);
+        gradient.addColorStop(0, '#009f95');
+        gradient.addColorStop(1, '#4169B8');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, barWidth, barHeight);
+    }
+    
+    window.requestAnimationFrame(visualizeAudio);
 }
 
 /**
@@ -214,12 +315,14 @@ document.addEventListener('visibilitychange', function() {
         console.warn('⏸️ Page hidden - predictions paused');
     } else {
         console.log('▶️ Page visible - predictions resumed');
-        if (isRunning && webcam) {
+        if (isRunning) {
             const modelType = getModelType();
-            if (modelType === 'image') {
+            if (modelType === 'image' && webcam) {
                 window.requestAnimationFrame(loopImage);
-            } else if (modelType === 'pose') {
+            } else if (modelType === 'pose' && webcam) {
                 window.requestAnimationFrame(loopPose);
+            } else if (modelType === 'audio' && analyser) {
+                window.requestAnimationFrame(visualizeAudio);
             }
         }
     }

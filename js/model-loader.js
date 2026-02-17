@@ -13,6 +13,7 @@ let modelType = null;
 function detectModelTypeFromURL(url) {
     if (url.includes('/image/')) return 'image';
     if (url.includes('/pose/')) return 'pose';
+    if (url.includes('/audio/')) return 'audio';
     return null;
 }
 
@@ -28,6 +29,9 @@ async function detectModelTypeFromMetadata(baseURL) {
         
         if (metadata.packageVersion && metadata.packageVersion.includes('pose')) {
             return 'pose';
+        }
+        if (metadata.packageVersion && metadata.packageVersion.includes('audio')) {
+            return 'audio';
         }
         return 'image';
     } catch (error) {
@@ -70,6 +74,21 @@ async function loadModel(modelURL) {
         maxPredictions = model.getTotalClasses();
     } else if (modelType === 'pose') {
         model = await window.tmPose.load(modelJsonURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+    } else if (modelType === 'audio') {
+        // Wait for audio library
+        let audioAttempts = 0;
+        while (!window.tmAudio) {
+            if (audioAttempts > 50) {
+                throw new Error('La librería de audio de Teachable Machine no se cargó');
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+            audioAttempts++;
+        }
+        
+        const checkpointURL = modelPath + 'model.json';
+        const metadataURL = modelPath + 'metadata.json';
+        model = await window.tmAudio.create(checkpointURL, metadataURL);
         maxPredictions = model.getTotalClasses();
     }
 
