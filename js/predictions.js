@@ -30,11 +30,18 @@ let microphone = null;
  *    internal property name used by different TM library builds
  */
 async function applyEnvironmentCamera(webcamInstance) {
-    // Stop the front-camera stream that setup() opened
-    if (webcamInstance.stream) {
-        webcamInstance.stream.getTracks().forEach(t => t.stop());
-        webcamInstance.stream = null;
+    // Locate the internal <video> element regardless of TM version property name.
+    // TM image/pose v0.8.x stores it as 'webcam'; other builds may use 'video'.
+    const videoEl = Object.values(webcamInstance).find(v => v instanceof HTMLVideoElement);
+
+    // Stop the active stream — the real stream lives on the video element's srcObject,
+    // not on a separate 'stream' property (TM v0.8.x has no such property).
+    const activeStream = (videoEl && videoEl.srcObject) || webcamInstance.stream;
+    if (activeStream) {
+        activeStream.getTracks().forEach(t => t.stop());
     }
+    if (webcamInstance.stream) webcamInstance.stream = null;
+    if (videoEl) videoEl.srcObject = null;
 
     // Wait for the camera hardware to fully release (important on Android)
     await new Promise(r => setTimeout(r, 200));
@@ -49,10 +56,7 @@ async function applyEnvironmentCamera(webcamInstance) {
         }
     });
 
-    webcamInstance.stream = stream;
-
-    // Locate the internal <video> element regardless of TM version property name
-    const videoEl = Object.values(webcamInstance).find(v => v instanceof HTMLVideoElement);
+    if (webcamInstance.stream !== undefined) webcamInstance.stream = stream;
     if (videoEl) {
         videoEl.srcObject = stream;
         // Do NOT call play() here — webcam.play() is called next and must be
