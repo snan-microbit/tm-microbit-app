@@ -18,16 +18,28 @@ let microphone = null;
 
 /**
  * Replace the TM Webcam's internal stream with an environment-facing stream.
- * Avoids the unreliable probe+deviceId approach: instead we swap the stream
- * directly after setup(), which works across iOS Safari and Android browsers.
+ * Called after webcam.setup() which always opens the front camera.
+ *
+ * Key points:
+ *  - No 'exact' facingMode constraint → maximum Android/iOS compatibility
+ *  - Short delay after stopping tracks → Android needs ~200 ms to release the
+ *    camera hardware before another stream can be opened
+ *  - No play() call here → webcam.play() is the sole caller; a double play()
+ *    causes AbortError on Chrome Android and triggers the error toast
+ *  - Object.values() to find the HTMLVideoElement → works regardless of the
+ *    internal property name used by different TM library builds
  */
 async function applyEnvironmentCamera(webcamInstance) {
-    // Stop whatever stream setup() opened (front camera by default)
+    // Stop the front-camera stream that setup() opened
     if (webcamInstance.stream) {
         webcamInstance.stream.getTracks().forEach(t => t.stop());
+        webcamInstance.stream = null;
     }
 
-    // Request the back camera — no 'exact' constraint for maximum compatibility
+    // Wait for the camera hardware to fully release (important on Android)
+    await new Promise(r => setTimeout(r, 200));
+
+    // Request the back camera — no 'exact' so the browser can fall back gracefully
     const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
@@ -37,13 +49,14 @@ async function applyEnvironmentCamera(webcamInstance) {
         }
     });
 
-    // Inject the new stream into the TM Webcam instance.
-    // The video element is 'webcam' in tmImage and 'video' in some tmPose builds.
     webcamInstance.stream = stream;
-    const videoEl = webcamInstance.webcam || webcamInstance.video;
+
+    // Locate the internal <video> element regardless of TM version property name
+    const videoEl = Object.values(webcamInstance).find(v => v instanceof HTMLVideoElement);
     if (videoEl) {
         videoEl.srcObject = stream;
-        videoEl.play().catch(() => {});
+        // Do NOT call play() here — webcam.play() is called next and must be
+        // the only caller; duplicate play() causes AbortError on Chrome Android
     }
 }
 
