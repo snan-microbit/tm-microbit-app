@@ -18,44 +18,107 @@ function detectModelTypeFromURL(url) {
 }
 
 /**
- * Detect model type from metadata.json
+ * Find batch_input_shape recursively in model topology
+ */
+function findInputShape(obj, depth = 0) {
+    if (depth > 10 || !obj || typeof obj !== 'object') return null;
+    
+    if (obj.batch_input_shape) {
+        return obj.batch_input_shape;
+    }
+    
+    // Check first layer's config (Sequential model)
+    if (obj.config && obj.config.layers && obj.config.layers.length > 0) {
+        const firstLayer = obj.config.layers[0];
+        if (firstLayer.config && firstLayer.config.batch_input_shape) {
+            return firstLayer.config.batch_input_shape;
+        }
+    }
+    
+    // Check model_config (Functional model)
+    if (obj.model_config) {
+        return findInputShape(obj.model_config, depth + 1);
+    }
+    
+    // Check modelTopology
+    if (obj.modelTopology) {
+        return findInputShape(obj.modelTopology, depth + 1);
+    }
+    
+    return null;
+}
+
+/**
+ * Detect model type from metadata.json and model.json
  */
 async function detectModelTypeFromMetadata(baseURL) {
     try {
+        // === Step 1: Check metadata.json ===
         const response = await fetch(baseURL + 'metadata.json');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const metadata = await response.json();
         
+        console.log('🔍 Full metadata.json:', JSON.stringify(metadata, null, 2));
+        
         // Check for audio-specific fields
         if (metadata.tmSoundModelVersion || metadata.audioSampleRate || metadata.wordLabels) {
+            console.log('🔍 Detected AUDIO from metadata fields');
             return 'audio';
         }
         
-        // Check packageVersion
-        if (metadata.packageVersion) {
-            if (metadata.packageVersion.includes('pose')) return 'pose';
-            if (metadata.packageVersion.includes('audio')) return 'audio';
+        // Check ALL string fields in metadata for "pose", "audio", "image"
+        const metadataStr = JSON.stringify(metadata).toLowerCase();
+        
+        if (metadataStr.includes('@teachablemachine/pose') || 
+            metadataStr.includes('teachablemachine-pose') ||
+            metadataStr.includes('"pose"')) {
+            console.log('🔍 Detected POSE from metadata string search');
+            return 'pose';
         }
         
-        // Check model name
-        if (metadata.modelName === 'audioModel') {
+        if (metadataStr.includes('@teachablemachine/image') ||
+            metadataStr.includes('teachablemachine-image')) {
+            console.log('🔍 Detected IMAGE from metadata string search');
+            return 'image';
+        }
+        
+        if (metadataStr.includes('speechcommands') || metadataStr.includes('audio')) {
+            console.log('🔍 Detected AUDIO from metadata string search');
             return 'audio';
         }
         
-        // Fallback: check input shape in model.json
+        // === Step 2: Check model.json input shape ===
         try {
             const modelResponse = await fetch(baseURL + 'model.json');
             if (modelResponse.ok) {
                 const modelJson = await modelResponse.json();
-                const inputShape = modelJson.modelTopology?.config?.layers?.[0]?.config?.batch_input_shape;
                 
-                if (inputShape && inputShape.length === 4) {
-                    const [, height, width, channels] = inputShape;
+                console.log('🔍 model.json keys:', Object.keys(modelJson));
+                
+                const inputShape = findInputShape(modelJson);
+                
+                console.log('🔍 Detected input shape:', JSON.stringify(inputShape));
+                
+                if (inputShape) {
+                    // Pose models: 2D input [null, N] where N = num_keypoints * features
+                    // Typical: [null, 34] for 17 keypoints * 2 (x,y)
+                    if (inputShape.length === 2) {
+                        console.log('🔍 2D input shape → POSE model');
+                        return 'pose';
+                    }
                     
-                    // Audio: channels=1, non-standard dimensions
-                    if (channels === 1 && (height !== 224 || width !== 224)) {
-                        return 'audio';
+                    // Image models: 4D input [null, 224, 224, 3]
+                    if (inputShape.length === 4) {
+                        const [, height, width, channels] = inputShape;
+                        
+                        if (channels === 1 && (height !== 224 || width !== 224)) {
+                            console.log('🔍 4D non-standard input → AUDIO model');
+                            return 'audio';
+                        }
+                        
+                        console.log('🔍 4D input [224,224,3] → IMAGE model');
+                        return 'image';
                     }
                 }
             }
@@ -63,7 +126,8 @@ async function detectModelTypeFromMetadata(baseURL) {
             console.warn('Could not analyze model.json:', e);
         }
         
-        return 'image'; // Default to image
+        console.log('🔍 Could not determine type, defaulting to IMAGE');
+        return 'image'; // Default
     } catch (error) {
         console.error('Error detecting model type:', error);
         throw error;
@@ -88,6 +152,8 @@ async function loadModel(modelURL) {
     
     // Detect model type
     modelType = detectModelTypeFromURL(modelURL);
+    console.log(`🔍 URL detection result: ${modelType || 'none'}`);
+    
     if (!modelType) {
         modelType = await detectModelTypeFromMetadata(modelPath);
     }
@@ -95,6 +161,8 @@ async function loadModel(modelURL) {
     if (!modelType) {
         throw new Error('Could not detect model type');
     }
+    
+    console.log(`🔍 Final detected model type: ${modelType}`);
     
     const modelJsonURL = modelPath + 'model.json';
     const metadataURL = modelPath + 'metadata.json';

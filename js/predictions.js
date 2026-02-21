@@ -9,6 +9,7 @@ import { sendToMicrobit, isConnected } from './bluetooth.js';
 
 // State
 let webcam = null;
+let predictionCanvas = null; // offscreen 200x200 canvas for pose prediction
 let isRunning = false;
 let audioContext = null;
 let analyser = null;
@@ -20,6 +21,8 @@ let microphone = null;
 async function startPredictions() {
     const modelType = getModelType();
     isRunning = true;
+    
+    console.log(`▶️ Starting predictions for model type: ${modelType}`);
     
     if (modelType === 'image') {
         await setupWebcam();
@@ -41,6 +44,7 @@ function stopPredictions() {
         webcam.stop();
         webcam = null;
     }
+    predictionCanvas = null;
     
     // Cleanup audio
     if (microphone) {
@@ -80,22 +84,37 @@ async function setupWebcam() {
 
 /**
  * Setup webcam for pose detection models
+ * webcam.canvas is kept off-DOM (capture only).
+ * A separate pose-display canvas is shown to the user so its context is
+ * always clean — no transform side-effects from webcam.update().
+ * An offscreen 200x200 predictionCanvas is used for estimatePose so
+ * keypoint coordinates stay in the 0-200 range the TM classifier expects.
  */
 async function setupPoseWebcam() {
     try {
+        console.log('🦴 Setting up pose webcam...');
+
+        // 400x400 webcam — NOT added to the DOM, used only for video capture
         webcam = new window.tmPose.Webcam(400, 400, true);
         await webcam.setup();
         await webcam.play();
-        
-        // Create overlay canvas for skeleton drawing
-        const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 400;
-        
+
+        // 200x200 offscreen canvas for pose estimation
+        predictionCanvas = document.createElement('canvas');
+        predictionCanvas.width = 200;
+        predictionCanvas.height = 200;
+
+        // 400x400 canvas shown to the user
+        const displayCanvas = document.createElement('canvas');
+        displayCanvas.id = 'pose-display';
+        displayCanvas.width = 400;
+        displayCanvas.height = 400;
+
         const wrapper = document.getElementById('webcam-wrapper');
-        wrapper.appendChild(webcam.canvas);
-        wrapper.appendChild(canvas);
-        
+        wrapper.innerHTML = '';
+        wrapper.appendChild(displayCanvas);
+
+        console.log('🦴 Pose webcam ready, starting prediction loop...');
         window.requestAnimationFrame(loopPose);
     } catch (error) {
         console.error('Pose webcam error:', error);
@@ -304,40 +323,52 @@ async function predictImage() {
 }
 
 /**
- * Predict for pose model and draw skeleton
+ * Predict for pose model and draw frame + skeleton on the display canvas
  */
 async function predictPose() {
     const model = getModel();
-    if (!model || !webcam) return;
-    
-    const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
-    const prediction = await model.predict(posenetOutput);
-    
-    // Draw pose skeleton on overlay canvas
-    const canvas = document.getElementById('webcam-wrapper').querySelectorAll('canvas')[1];
-    if (canvas && pose) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        if (pose.keypoints) {
-            drawPose(pose, ctx);
+    if (!model || !webcam || !predictionCanvas) return;
+
+    try {
+        // Scale the 400x400 webcam frame down to 200x200 before estimation.
+        // The TM pose classifier expects keypoint coordinates in the 0-200 range
+        // (the resolution used during training).
+        const predCtx = predictionCanvas.getContext('2d');
+        predCtx.drawImage(webcam.canvas, 0, 0, 200, 200);
+
+        const { pose, posenetOutput } = await model.estimatePose(predictionCanvas);
+        const prediction = await model.predict(posenetOutput);
+
+        // Draw the webcam frame and skeleton on the display canvas.
+        // Using a separate canvas avoids any transform side-effects left by
+        // webcam.update() on webcam.canvas's context.
+        const displayCanvas = document.getElementById('pose-display');
+        if (displayCanvas) {
+            const ctx = displayCanvas.getContext('2d');
+            ctx.drawImage(webcam.canvas, 0, 0, 400, 400);
+            if (pose && pose.keypoints) {
+                // Keypoints are in 0-200 space; scale by 2 for the 400x400 display
+                drawPose(pose, ctx, 2);
+            }
         }
+
+        displayPredictions(prediction);
+    } catch (error) {
+        console.error('Pose prediction error:', error);
     }
-    
-    displayPredictions(prediction);
 }
 
 /**
  * Draw pose skeleton (keypoints and connections)
  */
-function drawPose(pose, ctx) {
+function drawPose(pose, ctx, scale = 1) {
     if (!pose.keypoints) return;
     
     // Draw keypoints
     pose.keypoints.forEach(keypoint => {
         if (keypoint.score > 0.5) {
             ctx.beginPath();
-            ctx.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI);
+            ctx.arc(keypoint.position.x * scale, keypoint.position.y * scale, 5, 0, 2 * Math.PI);
             ctx.fillStyle = '#00ff00';
             ctx.fill();
         }
@@ -356,8 +387,8 @@ function drawPose(pose, ctx) {
         
         if (kp1.score > 0.5 && kp2.score > 0.5) {
             ctx.beginPath();
-            ctx.moveTo(kp1.position.x, kp1.position.y);
-            ctx.lineTo(kp2.position.x, kp2.position.y);
+            ctx.moveTo(kp1.position.x * scale, kp1.position.y * scale);
+            ctx.lineTo(kp2.position.x * scale, kp2.position.y * scale);
             ctx.strokeStyle = '#00ff00';
             ctx.lineWidth = 2;
             ctx.stroke();
