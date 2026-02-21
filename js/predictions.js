@@ -17,19 +17,33 @@ let analyser = null;
 let microphone = null;
 
 /**
- * Get the deviceId of the environment-facing (back) camera.
- * Returns null if none is available.
+ * Replace the TM Webcam's internal stream with an environment-facing stream.
+ * Avoids the unreliable probe+deviceId approach: instead we swap the stream
+ * directly after setup(), which works across iOS Safari and Android browsers.
  */
-async function getEnvCameraDeviceId() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: 'environment' } }
-        });
-        const deviceId = stream.getVideoTracks()[0].getSettings().deviceId;
-        stream.getTracks().forEach(t => t.stop());
-        return deviceId;
-    } catch {
-        return null;
+async function applyEnvironmentCamera(webcamInstance) {
+    // Stop whatever stream setup() opened (front camera by default)
+    if (webcamInstance.stream) {
+        webcamInstance.stream.getTracks().forEach(t => t.stop());
+    }
+
+    // Request the back camera — no 'exact' constraint for maximum compatibility
+    const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            facingMode: 'environment',
+            width: { ideal: webcamInstance.width || 400 },
+            height: { ideal: webcamInstance.height || 400 }
+        }
+    });
+
+    // Inject the new stream into the TM Webcam instance.
+    // The video element is 'webcam' in tmImage and 'video' in some tmPose builds.
+    webcamInstance.stream = stream;
+    const videoEl = webcamInstance.webcam || webcamInstance.video;
+    if (videoEl) {
+        videoEl.srcObject = stream;
+        videoEl.play().catch(() => {});
     }
 }
 
@@ -91,11 +105,9 @@ async function setupWebcam() {
         const flip = currentFacingMode === 'user';
         webcam = new window.tmImage.Webcam(400, 400, flip);
 
+        await webcam.setup();
         if (currentFacingMode === 'environment') {
-            const deviceId = await getEnvCameraDeviceId();
-            await webcam.setup(deviceId);
-        } else {
-            await webcam.setup();
+            await applyEnvironmentCamera(webcam);
         }
         await webcam.play();
 
@@ -125,11 +137,9 @@ async function setupPoseWebcam() {
         const flip = currentFacingMode === 'user';
         webcam = new window.tmPose.Webcam(400, 400, flip);
 
+        await webcam.setup();
         if (currentFacingMode === 'environment') {
-            const deviceId = await getEnvCameraDeviceId();
-            await webcam.setup(deviceId);
-        } else {
-            await webcam.setup();
+            await applyEnvironmentCamera(webcam);
         }
         await webcam.play();
 
@@ -511,20 +521,14 @@ document.addEventListener('visibilitychange', function() {
 /**
  * Toggle between front and back camera for image/pose models.
  * Returns false if the back camera is not available.
+ * No upfront probe — just tries the switch and reverts on failure.
  */
 async function flipCamera() {
     const modelType = getModelType();
     if (modelType !== 'image' && modelType !== 'pose') return false;
 
-    const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-
-    // Check back camera availability before committing to the switch
-    if (newFacingMode === 'environment') {
-        const deviceId = await getEnvCameraDeviceId();
-        if (!deviceId) return false;
-    }
-
-    currentFacingMode = newFacingMode;
+    const prevFacingMode = currentFacingMode;
+    currentFacingMode = prevFacingMode === 'user' ? 'environment' : 'user';
 
     // Tear down current webcam
     if (webcam) {
@@ -534,14 +538,23 @@ async function flipCamera() {
     predictionCanvas = null;
     document.getElementById('webcam-wrapper').innerHTML = '';
 
-    // Restart with the new camera
-    if (modelType === 'image') {
-        await setupWebcam();
-    } else {
-        await setupPoseWebcam();
+    try {
+        if (modelType === 'image') {
+            await setupWebcam();
+        } else {
+            await setupPoseWebcam();
+        }
+        return true;
+    } catch {
+        // Back camera unavailable — revert to previous camera
+        currentFacingMode = prevFacingMode;
+        if (modelType === 'image') {
+            await setupWebcam();
+        } else {
+            await setupPoseWebcam();
+        }
+        return false;
     }
-
-    return true;
 }
 
 export { startPredictions, stopPredictions, flipCamera };
