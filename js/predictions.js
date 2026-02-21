@@ -15,6 +15,8 @@ let currentFacingMode = 'user'; // 'user' = front camera, 'environment' = back c
 let audioContext = null;
 let analyser = null;
 let microphone = null;
+let predictionInFlight = false; // prevents concurrent ML inference calls
+let lastPose = null;            // last pose result, drawn every frame for smooth overlay
 
 /**
  * Replace the TM Webcam's internal stream with an environment-facing stream.
@@ -88,6 +90,9 @@ async function startPredictions() {
 function stopPredictions() {
     isRunning = false;
     
+    predictionInFlight = false;
+    lastPose = null;
+
     // Cleanup webcam
     if (webcam) {
         webcam.stop();
@@ -351,24 +356,49 @@ function drawRoundedBar(ctx, x, y, width, height, radius, isUp) {
 }
 
 /**
- * Image prediction loop
+ * Image prediction loop.
+ * webcam.update() runs every frame for smooth video; inference fires
+ * only when the previous call has finished (no concurrent calls).
  */
-async function loopImage() {
+function loopImage() {
     if (!isRunning || !webcam) return;
-    
+
     webcam.update();
-    await predictImage();
+
+    if (!predictionInFlight) {
+        predictionInFlight = true;
+        predictImage().finally(() => { predictionInFlight = false; });
+    }
+
     window.requestAnimationFrame(loopImage);
 }
 
 /**
- * Pose prediction loop
+ * Pose prediction loop.
+ * Draws the current video frame + last known skeleton every RAF for smooth
+ * video. Inference fires only when the previous call has finished, so the
+ * skeleton updates at the model's natural rate without blocking the display.
  */
-async function loopPose() {
+function loopPose() {
     if (!isRunning || !webcam) return;
-    
+
     webcam.update();
-    await predictPose();
+
+    // Always draw the latest video frame so the display is smooth
+    const displayCanvas = document.getElementById('pose-display');
+    if (displayCanvas) {
+        const ctx = displayCanvas.getContext('2d');
+        ctx.drawImage(webcam.canvas, 0, 0, 400, 400);
+        if (lastPose && lastPose.keypoints) {
+            drawPose(lastPose, ctx, 2);
+        }
+    }
+
+    if (!predictionInFlight) {
+        predictionInFlight = true;
+        predictPose().finally(() => { predictionInFlight = false; });
+    }
+
     window.requestAnimationFrame(loopPose);
 }
 
@@ -384,7 +414,10 @@ async function predictImage() {
 }
 
 /**
- * Predict for pose model and draw frame + skeleton on the display canvas
+ * Predict for pose model.
+ * Display drawing is handled by loopPose every RAF for smooth video.
+ * This function only runs inference and stores the result in lastPose so
+ * the loop can overlay the skeleton without blocking the display.
  */
 async function predictPose() {
     const model = getModel();
@@ -400,18 +433,8 @@ async function predictPose() {
         const { pose, posenetOutput } = await model.estimatePose(predictionCanvas);
         const prediction = await model.predict(posenetOutput);
 
-        // Draw the webcam frame and skeleton on the display canvas.
-        // Using a separate canvas avoids any transform side-effects left by
-        // webcam.update() on webcam.canvas's context.
-        const displayCanvas = document.getElementById('pose-display');
-        if (displayCanvas) {
-            const ctx = displayCanvas.getContext('2d');
-            ctx.drawImage(webcam.canvas, 0, 0, 400, 400);
-            if (pose && pose.keypoints) {
-                // Keypoints are in 0-200 space; scale by 2 for the 400x400 display
-                drawPose(pose, ctx, 2);
-            }
-        }
+        // Cache pose so loopPose can overlay it on every display frame
+        lastPose = pose;
 
         displayPredictions(prediction);
     } catch (error) {
