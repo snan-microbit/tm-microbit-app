@@ -11,9 +11,27 @@ import { sendToMicrobit, isConnected } from './bluetooth.js';
 let webcam = null;
 let predictionCanvas = null; // offscreen 200x200 canvas for pose prediction
 let isRunning = false;
+let currentFacingMode = 'user'; // 'user' = front camera, 'environment' = back camera
 let audioContext = null;
 let analyser = null;
 let microphone = null;
+
+/**
+ * Get the deviceId of the environment-facing (back) camera.
+ * Returns null if none is available.
+ */
+async function getEnvCameraDeviceId() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { exact: 'environment' } }
+        });
+        const deviceId = stream.getVideoTracks()[0].getSettings().deviceId;
+        stream.getTracks().forEach(t => t.stop());
+        return deviceId;
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Start predictions based on model type
@@ -70,11 +88,20 @@ function stopPredictions() {
  */
 async function setupWebcam() {
     try {
-        webcam = new window.tmImage.Webcam(400, 400, true);
-        await webcam.setup();
+        const flip = currentFacingMode === 'user';
+        webcam = new window.tmImage.Webcam(400, 400, flip);
+
+        if (currentFacingMode === 'environment') {
+            const deviceId = await getEnvCameraDeviceId();
+            await webcam.setup(deviceId);
+        } else {
+            await webcam.setup();
+        }
         await webcam.play();
-        
-        document.getElementById('webcam-wrapper').appendChild(webcam.canvas);
+
+        const wrapper = document.getElementById('webcam-wrapper');
+        wrapper.innerHTML = '';
+        wrapper.appendChild(webcam.canvas);
         window.requestAnimationFrame(loopImage);
     } catch (error) {
         console.error('Webcam error:', error);
@@ -95,8 +122,15 @@ async function setupPoseWebcam() {
         console.log('🦴 Setting up pose webcam...');
 
         // 400x400 webcam — NOT added to the DOM, used only for video capture
-        webcam = new window.tmPose.Webcam(400, 400, true);
-        await webcam.setup();
+        const flip = currentFacingMode === 'user';
+        webcam = new window.tmPose.Webcam(400, 400, flip);
+
+        if (currentFacingMode === 'environment') {
+            const deviceId = await getEnvCameraDeviceId();
+            await webcam.setup(deviceId);
+        } else {
+            await webcam.setup();
+        }
         await webcam.play();
 
         // 200x200 offscreen canvas for pose estimation
@@ -474,4 +508,40 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
-export { startPredictions, stopPredictions };
+/**
+ * Toggle between front and back camera for image/pose models.
+ * Returns false if the back camera is not available.
+ */
+async function flipCamera() {
+    const modelType = getModelType();
+    if (modelType !== 'image' && modelType !== 'pose') return false;
+
+    const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+    // Check back camera availability before committing to the switch
+    if (newFacingMode === 'environment') {
+        const deviceId = await getEnvCameraDeviceId();
+        if (!deviceId) return false;
+    }
+
+    currentFacingMode = newFacingMode;
+
+    // Tear down current webcam
+    if (webcam) {
+        webcam.stop();
+        webcam = null;
+    }
+    predictionCanvas = null;
+    document.getElementById('webcam-wrapper').innerHTML = '';
+
+    // Restart with the new camera
+    if (modelType === 'image') {
+        await setupWebcam();
+    } else {
+        await setupPoseWebcam();
+    }
+
+    return true;
+}
+
+export { startPredictions, stopPredictions, flipCamera };

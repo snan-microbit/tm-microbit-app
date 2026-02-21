@@ -346,6 +346,36 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+}
+
+.btn-flip-camera {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: background 0.2s;
+}
+
+.btn-flip-camera:active {
+    background: rgba(0, 0, 0, 0.7);
+    transform: scale(0.93);
+}
+
+.btn-flip-camera.hidden {
+    display: none;
 }
 
 #webcam-wrapper {

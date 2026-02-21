@@ -5,9 +5,9 @@
 
 console.log('📝 app.js loading...');
 
-import { loadModel } from './model-loader.js';
+import { loadModel, getModelType } from './model-loader.js';
 import { connectMicrobit, disconnectMicrobit, isConnected } from './bluetooth.js';
-import { startPredictions, stopPredictions } from './predictions.js';
+import { startPredictions, stopPredictions, flipCamera } from './predictions.js';
 
 console.log('✅ app.js modules imported');
 
@@ -98,11 +98,20 @@ async function useModel(model) {
     showScreen('processingScreen');
     document.getElementById('modelName').textContent = model.name;
     showToast('Cargando modelo...', 'info');
-    
+
     try {
         await loadModel(model.url);
         await startPredictions();
         showToast('Modelo cargado', 'success');
+
+        // Show flip button only for webcam-based models
+        const modelType = getModelType();
+        const flipBtn = document.getElementById('flipCameraBtn');
+        if (modelType === 'image' || modelType === 'pose') {
+            flipBtn.classList.remove('hidden');
+        } else {
+            flipBtn.classList.add('hidden');
+        }
     } catch (error) {
         console.error('Error:', error);
         showToast('Error al cargar el modelo', 'error');
@@ -207,21 +216,26 @@ document.getElementById('modelUrlInput').addEventListener('keypress', (e) => {
 document.getElementById('backBtn').addEventListener('click', () => {
     stopPredictions();
     if (isConnected()) disconnectMicrobit();
-    
+
     // Clean up processing screen
-    const webcamWrapper = document.getElementById('webcam-wrapper');
-    webcamWrapper.innerHTML = ''; // Remove webcam canvas
-    
-    const predictions = document.getElementById('predictions');
-    predictions.innerHTML = ''; // Clear predictions
-    
+    document.getElementById('webcam-wrapper').innerHTML = '';
+    document.getElementById('predictions').innerHTML = '';
+    document.getElementById('flipCameraBtn').classList.add('hidden');
+
     // Reset buttons
     document.getElementById('connectBtn').style.display = 'block';
     document.getElementById('disconnectBtn').style.display = 'none';
     document.getElementById('connectionBadge').textContent = 'Desconectado';
     document.getElementById('connectionBadge').className = 'badge badge-disconnected';
-    
+
     showScreen('homeScreen');
+});
+
+document.getElementById('flipCameraBtn').addEventListener('click', async () => {
+    const success = await flipCamera();
+    if (!success) {
+        showToast('No hay cámara trasera disponible', 'error');
+    }
 });
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
