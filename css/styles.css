@@ -460,7 +460,7 @@ body {
 .processing-actions {
     background: var(--surface);
     border-top: 2px solid var(--border);
-    padding: 1rem;
+    padding: 0.5rem 1rem;
     flex-shrink: 0;
 }
 
@@ -488,6 +488,163 @@ body {
 
 .btn-disconnect:active {
     background: #c5303e;
+}
+
+.btn-makecode {
+    background: #5c6bc0;
+    color: white;
+    max-width: 400px;
+    width: 100%;
+    margin: 0.35rem auto 0;
+    display: block;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    touch-action: manipulation;
+    min-height: 44px;
+    transition: all 0.2s;
+}
+
+.btn-makecode:active {
+    background: #3949ab;
+    transform: scale(0.98);
+}
+
+/* ============================================
+   MAKECODE SCREEN
+   ============================================ */
+
+.makecode-layout {
+    min-height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.makecode-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0.25rem 0.75rem;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-height: 36px;
+}
+
+.btn-home-from-mc {
+    background: none;
+    color: var(--text-light);
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+}
+
+.btn-home-from-mc:active {
+    background: var(--bg);
+}
+
+.btn-run-model {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.3rem 0.875rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    margin-left: auto;
+}
+
+.btn-run-model:active {
+    background: var(--primary-hover);
+    transform: scale(0.97);
+}
+
+.open-project-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.btn-project-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.btn-project-option:active {
+    border-color: var(--primary);
+    background: #e8f5f4;
+    transform: scale(0.98);
+}
+
+.option-icon {
+    font-size: 1.75rem;
+    flex-shrink: 0;
+}
+
+.option-label {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.2rem;
+}
+
+.option-desc {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    font-weight: 400;
+}
+
+.btn-project-option > span:not(.option-icon) {
+    display: flex;
+    flex-direction: column;
+}
+
+.model-card-classes {
+    font-size: 0.8rem;
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.makecode-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#makecodeFrame {
+    flex: 1;
+    width: 100%;
+    border: none;
+    display: block;
 }
 
 /* ============================================

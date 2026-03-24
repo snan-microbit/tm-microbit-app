@@ -7,6 +7,11 @@ let microbitDevice = null;
 let uartService = null;
 let txCharacteristic = null;
 let keepAliveInterval = null;
+let disconnectCallback = null;
+
+function setDisconnectCallback(fn) {
+    disconnectCallback = fn;
+}
 
 const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const UART_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
@@ -56,6 +61,7 @@ function onDisconnected() {
     txCharacteristic = null;
     microbitDevice = null;
     stopKeepAlive();
+    if (disconnectCallback) disconnectCallback();
     console.log('Disconnected');
 }
 
@@ -113,4 +119,4 @@ function stopKeepAlive() {
     }
 }
 
-export { connectMicrobit, disconnectMicrobit, sendToMicrobit, isConnected };
+export { connectMicrobit, disconnectMicrobit, sendToMicrobit, isConnected, setDisconnectCallback };

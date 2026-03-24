@@ -1,21 +1,26 @@
 /**
  * app.js
- * Main application logic with model library
+ * Main application logic
  */
 
-console.log('📝 app.js loading...');
-
-import { loadModel, getModelType } from './model-loader.js';
-import { connectMicrobit, disconnectMicrobit, isConnected } from './bluetooth.js';
+import { loadModel, getModelType, getClassNames, extractClassNames } from './model-loader.js';
+import { connectMicrobit, disconnectMicrobit, setDisconnectCallback } from './bluetooth.js';
 import { startPredictions, stopPredictions, flipCamera } from './predictions.js';
-
-console.log('✅ app.js modules imported');
+import { openMakeCode, closeMakeCode } from './makecode-embed.js';
 
 let currentModel = null;
 const MODELS_KEY = 'tm_microbit_models';
 
+function resetConnectionUI() {
+    document.getElementById('connectBtn').style.display = 'block';
+    document.getElementById('disconnectBtn').style.display = 'none';
+    document.getElementById('connectionBadge').textContent = 'Desconectado';
+    document.getElementById('connectionBadge').className = 'badge badge-disconnected';
+}
+setDisconnectCallback(resetConnectionUI);
+
 // ============================================
-// MODEL LIBRARY
+// PROJECT LIBRARY
 // ============================================
 
 function loadModels() {
@@ -27,13 +32,16 @@ function saveModels(models) {
     localStorage.setItem(MODELS_KEY, JSON.stringify(models));
 }
 
-function addModel(name, url) {
+function addProject(name, url, classNames) {
     const models = loadModels();
     const newModel = {
         id: Date.now().toString(),
         name: name.trim(),
         url: url.trim(),
-        createdAt: new Date().toISOString()
+        classNames,
+        makecodeProject: null,
+        createdAt: new Date().toISOString(),
+        lastUsed: new Date().toISOString()
     };
     models.unshift(newModel);
     saveModels(models);
@@ -42,8 +50,17 @@ function addModel(name, url) {
 
 function deleteModel(id) {
     const models = loadModels();
-    const filtered = models.filter(m => m.id !== id);
-    saveModels(filtered);
+    saveModels(models.filter(m => m.id !== id));
+}
+
+function updateProjectMakeCode(id, makecodeProject) {
+    const models = loadModels();
+    const model = models.find(m => m.id === id);
+    if (model) {
+        model.makecodeProject = makecodeProject;
+        model.lastUsed = new Date().toISOString();
+        saveModels(models);
+    }
 }
 
 function renderModels() {
@@ -58,15 +75,15 @@ function renderModels() {
     }
 
     emptyState.style.display = 'none';
-    
+
     modelsList.innerHTML = models.map(model => `
         <div class="model-card">
             <div class="model-card-title">${escapeHtml(model.name)}</div>
-            <div class="model-card-url">${escapeHtml(model.url)}</div>
+            ${model.classNames ? `<div class="model-card-classes">${model.classNames.map(c => escapeHtml(c)).join(' · ')}</div>` : ''}
             <div class="model-card-date">Creado: ${formatDate(model.createdAt)}</div>
             <div class="model-card-actions">
-                <button class="btn-card btn-use" data-action="use" data-id="${model.id}">
-                    ▶ Usar
+                <button class="btn-card btn-use" data-action="open" data-id="${model.id}">
+                    Abrir
                 </button>
                 <button class="btn-card btn-delete" data-action="delete" data-id="${model.id}">
                     🗑 Eliminar
@@ -75,36 +92,76 @@ function renderModels() {
         </div>
     `).join('');
 
-    modelsList.querySelectorAll('[data-action="use"]').forEach(btn => {
+    modelsList.querySelectorAll('[data-action="open"]').forEach(btn => {
         btn.addEventListener('click', () => {
             const model = models.find(m => m.id === btn.dataset.id);
-            if (model) useModel(model);
+            if (model) showOpenProjectModal(model);
         });
     });
 
     modelsList.querySelectorAll('[data-action="delete"]').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (confirm('¿Eliminar este modelo?')) {
+            if (confirm('¿Eliminar este proyecto?')) {
                 deleteModel(btn.dataset.id);
                 renderModels();
-                showToast('Modelo eliminado', 'success');
+                showToast('Proyecto eliminado', 'success');
             }
         });
     });
 }
 
-async function useModel(model) {
-    currentModel = model;
+// ============================================
+// NAVIGATION & FLOWS
+// ============================================
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById(screenId).classList.remove('hidden');
+}
+
+function openMakeCodeForModel(model) {
+    stopPredictions();
+    disconnectMicrobit();
+    openMakeCode(
+        model.classNames || getClassNames(),
+        model.makecodeProject || null,
+        (proj) => {
+            updateProjectMakeCode(model.id, proj);
+            // Keep in-memory reference in sync so re-opening loads the saved project
+            if (currentModel && currentModel.id === model.id) {
+                currentModel.makecodeProject = proj;
+            }
+        },
+        model.name
+    );
+    showScreen('makecodeScreen');
+}
+
+let selectedProject = null;
+
+function showOpenProjectModal(model) {
+    selectedProject = model;
+    document.getElementById('openProjectTitle').textContent = model.name;
+    document.getElementById('openProjectModal').classList.remove('hidden');
+}
+
+function hideOpenProjectModal() {
+    document.getElementById('openProjectModal').classList.add('hidden');
+    selectedProject = null;
+}
+
+async function goToExecution() {
+    closeMakeCode();
+    resetConnectionUI();
     showScreen('processingScreen');
-    document.getElementById('modelName').textContent = model.name;
+    document.getElementById('modelName').textContent = currentModel.name;
     showToast('Cargando modelo...', 'info');
 
     try {
-        await loadModel(model.url);
+        await loadModel(currentModel.url);
         await startPredictions();
         showToast('Modelo cargado', 'success');
 
-        // Show flip button only for webcam-based models
         const modelType = getModelType();
         const flipBtn = document.getElementById('flipCameraBtn');
         if (modelType === 'image' || modelType === 'pose') {
@@ -117,15 +174,6 @@ async function useModel(model) {
         showToast('Error al cargar el modelo', 'error');
         showScreen('homeScreen');
     }
-}
-
-// ============================================
-// NAVIGATION
-// ============================================
-
-function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-    document.getElementById(screenId).classList.remove('hidden');
 }
 
 // ============================================
@@ -157,10 +205,19 @@ async function saveNewModel() {
         return;
     }
 
-    const model = addModel(name, url);
     hideModal();
-    renderModels();
-    await useModel(model);
+    showToast('Leyendo modelo...', 'info');
+
+    try {
+        const classNames = await extractClassNames(url);
+        const model = addProject(name, url, classNames);
+        currentModel = model;
+        renderModels();
+        openMakeCodeForModel(model);
+    } catch (error) {
+        console.error('Error extracting classes:', error);
+        showToast('Error al leer el modelo', 'error');
+    }
 }
 
 // ============================================
@@ -176,17 +233,16 @@ function escapeHtml(text) {
 function formatDate(isoString) {
     const date = new Date(isoString);
     const now = new Date();
-    const diff = now - date;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
+    const days = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
     if (days === 0) return 'Hoy';
     if (days === 1) return 'Ayer';
     if (days < 7) return `Hace ${days} días`;
-    
-    return date.toLocaleDateString('es-ES', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+
+    return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
     });
 }
 
@@ -212,46 +268,61 @@ document.getElementById('modelUrlInput').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') saveNewModel();
 });
 
-// Processing
+// Open project modal
+document.getElementById('closeOpenProjectBtn').addEventListener('click', hideOpenProjectModal);
+
+document.getElementById('editCodeBtn').addEventListener('click', () => {
+    const model = selectedProject;
+    hideOpenProjectModal();
+    currentModel = model;
+    openMakeCodeForModel(model);
+});
+
+document.getElementById('runProjectBtn').addEventListener('click', () => {
+    const model = selectedProject;
+    hideOpenProjectModal();
+    currentModel = model;
+    goToExecution();
+});
+
+// MakeCode screen
+document.getElementById('runModelBtn').addEventListener('click', () => {
+    goToExecution();
+});
+
+document.getElementById('homeFromMakecodeBtn').addEventListener('click', () => {
+    closeMakeCode();
+    showScreen('homeScreen');
+});
+
+// Processing screen
 document.getElementById('backBtn').addEventListener('click', () => {
     stopPredictions();
-    if (isConnected()) disconnectMicrobit();
+    disconnectMicrobit();
 
-    // Clean up processing screen
     document.getElementById('webcam-wrapper').innerHTML = '';
     document.getElementById('predictions').innerHTML = '';
     document.getElementById('flipCameraBtn').classList.add('hidden');
-
-    // Reset buttons
-    document.getElementById('connectBtn').style.display = 'block';
-    document.getElementById('disconnectBtn').style.display = 'none';
-    document.getElementById('connectionBadge').textContent = 'Desconectado';
-    document.getElementById('connectionBadge').className = 'badge badge-disconnected';
 
     showScreen('homeScreen');
 });
 
 document.getElementById('flipCameraBtn').addEventListener('click', async () => {
     const success = await flipCamera();
-    if (!success) {
-        showToast('No hay cámara trasera disponible', 'error');
-    }
+    if (!success) showToast('No hay cámara trasera disponible', 'error');
 });
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
-    // Mostrar estado "Conectando"
     document.getElementById('connectionBadge').textContent = 'Conectando...';
     document.getElementById('connectionBadge').className = 'badge badge-connecting';
-    
+
     try {
         await connectMicrobit();
         document.getElementById('connectBtn').style.display = 'none';
         document.getElementById('disconnectBtn').style.display = 'block';
         document.getElementById('connectionBadge').textContent = 'Conectado';
         document.getElementById('connectionBadge').className = 'badge badge-connected';
-        //showToast('Conectado', 'success');
     } catch (error) {
-        // Volver a estado desconectado si falla
         document.getElementById('connectionBadge').textContent = 'Desconectado';
         document.getElementById('connectionBadge').className = 'badge badge-disconnected';
         showToast('Error al conectar', 'error');
@@ -260,18 +331,16 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
 
 document.getElementById('disconnectBtn').addEventListener('click', () => {
     disconnectMicrobit();
-    document.getElementById('connectBtn').style.display = 'block';
-    document.getElementById('disconnectBtn').style.display = 'none';
-    document.getElementById('connectionBadge').textContent = 'Desconectado';
-    document.getElementById('connectionBadge').className = 'badge badge-disconnected';
-    //showToast('Desconectado', 'info');
+});
+
+document.getElementById('openMakecodeBtn').addEventListener('click', () => {
+    openMakeCodeForModel(currentModel);
 });
 
 // ============================================
 // PULL-TO-REFRESH PREVENTION
 // ============================================
 
-// Prevenir el gesto de recargar página en la pantalla de processing
 let touchStartY = 0;
 
 document.addEventListener('touchstart', (e) => {
@@ -280,16 +349,9 @@ document.addEventListener('touchstart', (e) => {
 
 document.addEventListener('touchmove', (e) => {
     const processingScreen = document.getElementById('processingScreen');
-    const isProcessingVisible = !processingScreen.classList.contains('hidden');
-    
-    if (isProcessingVisible) {
-        const touchY = e.touches[0].clientY;
-        const touchDelta = touchY - touchStartY;
-        
-        // Si el usuario está jalando hacia abajo desde la parte superior
-        if (touchDelta > 0 && window.scrollY === 0) {
-            e.preventDefault();
-        }
+    if (!processingScreen.classList.contains('hidden')) {
+        const touchDelta = e.touches[0].clientY - touchStartY;
+        if (touchDelta > 0 && window.scrollY === 0) e.preventDefault();
     }
 }, { passive: false });
 
@@ -298,20 +360,7 @@ document.addEventListener('touchmove', (e) => {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOMContentLoaded event fired');
-    console.log('📦 Elements check:');
-    console.log('- newModelBtn:', document.getElementById('newModelBtn'));
-    console.log('- modelsList:', document.getElementById('modelsList'));
-    console.log('- emptyState:', document.getElementById('emptyState'));
-    
-    try {
-        renderModels();
-        console.log('✅ Models rendered successfully');
-    } catch (error) {
-        console.error('❌ Error rendering models:', error);
-    }
-    
-    console.log('✅ TM + micro:bit ready');
+    renderModels();
 });
 
 export { showToast };

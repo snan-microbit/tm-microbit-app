@@ -93,8 +93,14 @@ function stopPredictions() {
     predictionInFlight = false;
     lastPose = null;
 
-    // Cleanup webcam
+    // Cleanup webcam — explicitly stop MediaStream tracks since TM's webcam.stop()
+    // only pauses the video element and doesn't release the camera hardware
     if (webcam) {
+        const videoEl = Object.values(webcam).find(v => v instanceof HTMLVideoElement);
+        const activeStream = (videoEl && videoEl.srcObject) || webcam.stream;
+        if (activeStream) {
+            activeStream.getTracks().forEach(t => t.stop());
+        }
         webcam.stop();
         webcam = null;
     }

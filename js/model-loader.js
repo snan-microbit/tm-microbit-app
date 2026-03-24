@@ -221,4 +221,37 @@ function getMaxPredictions() {
     return maxPredictions;
 }
 
-export { loadModel, getModel, getModelType, getMaxPredictions };
+/**
+ * Get class names for the loaded model
+ */
+function getClassNames() {
+    if (!model) return [];
+    if (modelType === 'audio') {
+        return model.wordLabels();
+    }
+    // image and pose: getTotalClasses + getClassLabels (tmImage/tmPose)
+    if (typeof model.getClassLabels === 'function') {
+        return model.getClassLabels();
+    }
+    // Fallback: generate generic names
+    return Array.from({ length: maxPredictions }, (_, i) => `Clase ${i + 1}`);
+}
+
+/**
+ * Extract class names from a TM model URL without loading the full model.
+ * Only fetches metadata.json — fast and lightweight.
+ */
+async function extractClassNames(modelURL) {
+    const modelPath = modelURL.endsWith('/') ? modelURL : modelURL + '/';
+    const response = await fetch(modelPath + 'metadata.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const metadata = await response.json();
+
+    if (metadata.labels && metadata.labels.length) return metadata.labels;
+    if (metadata.wordLabels && metadata.wordLabels.length) return metadata.wordLabels;
+    if (metadata.tfjsMetadata?.labels?.length) return metadata.tfjsMetadata.labels;
+
+    throw new Error('No se pudieron extraer las clases del modelo');
+}
+
+export { loadModel, getModel, getModelType, getMaxPredictions, getClassNames, extractClassNames };

@@ -9,20 +9,20 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>TM + micro:bit</title>
-    
+
     <link rel="preload" as="image" href="assets/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="css/styles.css?v=2.3">
-    
+
     <!-- TF.js 1.3.1: required by @teachablemachine/pose (fromPixels removed in 2.0+) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
@@ -42,15 +42,15 @@
             </header>
 
             <button class="btn-primary btn-large" id="newModelBtn">
-                + Nuevo Modelo
+                + Nuevo Proyecto
             </button>
 
             <section class="models-library">
-                <h2>Mis Modelos</h2>
+                <h2>Mis Proyectos</h2>
                 <div id="modelsList" class="models-grid"></div>
                 <div id="emptyState" class="empty-state">
-                    <p>No hay modelos guardados</p>
-                    <p class="empty-hint">Haz clic en "Nuevo Modelo" para empezar</p>
+                    <p>No hay proyectos guardados</p>
+                    <p class="empty-hint">Hacé clic en "Nuevo Proyecto" para empezar</p>
                 </div>
             </section>
         </div>
@@ -65,7 +65,7 @@
                         <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
-                <h2 id="modelName">Modelo</h2>
+                <h2 id="modelName">Proyecto</h2>
                 <div class="connection-status">
                     <span id="connectionBadge" class="badge badge-disconnected">Desconectado</span>
                 </div>
@@ -92,21 +92,39 @@
             <div class="processing-actions">
                 <button class="btn-connect" id="connectBtn">🔗 Conectar micro:bit</button>
                 <button class="btn-disconnect" id="disconnectBtn" style="display: none;">❌ Desconectar</button>
+                <button class="btn-makecode" id="openMakecodeBtn">🧩 Editar código</button>
             </div>
         </div>
     </div>
 
-    <!-- NEW MODEL MODAL -->
+    <!-- MAKECODE SCREEN -->
+    <div class="screen hidden" id="makecodeScreen">
+        <div class="makecode-layout">
+            <header class="makecode-header">
+                <button class="btn-home-from-mc" id="homeFromMakecodeBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button class="btn-run-model" id="runModelBtn">▶ Probar proyecto</button>
+            </header>
+            <div id="makecodeContainer" class="makecode-container">
+                <iframe id="makecodeFrame" allow="usb; autoplay; camera; microphone;" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW PROJECT MODAL -->
     <div class="modal hidden" id="newModelModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Nuevo Modelo</h3>
+                <h3>Nuevo Proyecto</h3>
                 <button class="modal-close" id="closeModalBtn">×</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="modelNameInput">Nombre del modelo</label>
-                    <input type="text" id="modelNameInput" placeholder="Ej: Reconocedor de gestos" class="input-text">
+                    <label for="modelNameInput">Nombre del proyecto</label>
+                    <input type="text" id="modelNameInput" placeholder="Ej: Detector de gestos" class="input-text">
                 </div>
                 <div class="form-group">
                     <label for="modelUrlInput">URL del modelo de Teachable Machine</label>
@@ -116,7 +134,31 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" id="cancelModalBtn">Cancelar</button>
-                <button class="btn-primary" id="saveModelBtn">Guardar y Usar</button>
+                <button class="btn-primary" id="saveModelBtn">Crear proyecto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPEN PROJECT MODAL -->
+    <div class="modal hidden" id="openProjectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="openProjectTitle">Proyecto</h3>
+                <button class="modal-close" id="closeOpenProjectBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="open-project-options">
+                    <button class="btn-project-option" id="editCodeBtn">
+                        <span class="option-icon">🧩</span>
+                        <span class="option-label">Editar código</span>
+                        <span class="option-desc">Abrí el editor MakeCode para programar tu micro:bit</span>
+                    </button>
+                    <button class="btn-project-option" id="runProjectBtn">
+                        <span class="option-icon">▶</span>
+                        <span class="option-label">Correr modelo</span>
+                        <span class="option-desc">Ejecutá el modelo y conectá tu micro:bit</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

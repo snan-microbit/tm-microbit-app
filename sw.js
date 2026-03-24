@@ -1,7 +1,7 @@
 // sw.js
 // Service Worker for PWA - Network First Strategy
 
-const CACHE_NAME = 'tm-microbit-v2.2'; // ← Incrementado para forzar nueva versión
+const CACHE_NAME = 'tm-microbit-v2.3'; // ← Incrementado para forzar nueva versión
 const urlsToCache = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const urlsToCache = [
   './js/model-loader.js',
   './js/bluetooth.js',
   './js/predictions.js',
+  './js/makecode-embed.js',
   './manifest.json'
 ];
 
