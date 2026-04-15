@@ -767,11 +767,13 @@ function renderTrainingPredictions(predictions) {
 
     container.innerHTML = predictions.map((pred, i) => {
         const pct = (pred.probability * 100).toFixed(1);
+        const isWinner = (i === winnerIdx);
+        const confColor = isWinner ? 'var(--primary)' : '#888';
         return `
-            <div class="prediction-item ${i === winnerIdx ? 'top' : ''}">
+            <div class="prediction-item ${isWinner ? 'top' : ''}">
                 <div class="prediction-header">
                     <span class="class-name">${escapeHtml(pred.className)}</span>
-                    <span class="confidence">${pct}%</span>
+                    <span class="confidence" style="color:${confColor}">${pct}%</span>
                 </div>
                 <div class="confidence-bar">
                     <div class="confidence-fill" style="width: ${pct}%"></div>

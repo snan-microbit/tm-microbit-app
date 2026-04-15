@@ -552,19 +552,19 @@ body.prediction-expanded .prediction-actions {
 
 .class-name {
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    color: #085041;
 }
 
 .confidence {
     font-weight: 700;
-    color: var(--primary);
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .confidence-bar {
-    height: 8px;
+    height: 5px;
     background: #e0e0e0;
-    border-radius: 4px;
+    border-radius: 3px;
     overflow: hidden;
 }
 
@@ -1394,18 +1394,11 @@ button, a, input {
 @media (max-width: 700px) {
     .training-capture-section {
         flex-direction: column;
-        overflow-y: auto;
-    }
-    .capture-classes-column {
-        overflow: visible;
-        min-height: unset;
-    }
-    #trainingClassesList {
-        overflow-y: visible;
-        flex: none;
+        overflow: hidden;
     }
     .capture-webcam-column {
         width: 100%;
+        position: static;
         flex-shrink: 0;
         border-right: none;
         border-bottom: none;
@@ -1415,6 +1408,25 @@ button, a, input {
         justify-content: center;
         background: #f5f5f5;
         z-index: 2;
+    }
+    .capture-classes-column {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .classes-card {
+        flex: 1;
+        min-height: 0;
+    }
+    .classes-card-body {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+    }
+    #trainingClassesList {
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
     }
     .capture-webcam-container {
         width: 70%;
@@ -2125,12 +2137,16 @@ button, a, input {
 }
 
 .preview-modal-header {
-    padding: 14px 18px;
+    height: 44px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
     background: #009f95;
+    flex-shrink: 0;
 }
 
 .preview-modal-title {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     margin: 0;
     color: #fff;
