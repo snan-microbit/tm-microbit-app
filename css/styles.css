@@ -46,19 +46,33 @@
    ============================================ */
 
 :root {
-    --primary: #009f95;
-    --primary-hover: #008680;
-    --secondary: #0091DA;
-    --accent: #FF6B35;
+    --primary:        #009f95;
+    --primary-hover:  #008680;
+    --primary-light:  #e8f5f4;
+    --primary-deep:   #005f58;
+
+    --bg:             #f4f5f5;
+    --bg-alt:         #edf7f6;
+    --surface:        #ffffff;
+
+    --text:           #1a1a1a;
+    --text-mid:       #454545;
+    --text-light:     #777777;
+
+    --border:         #e0e0e0;
+    --border-acc:     #c5e0de;
+
+    --radius-sm:      8px;
+    --radius:         12px;
+    --radius-lg:      16px;
+
+    --shadow:         0 1px 3px rgba(0,0,0,.07), 0 2px 8px rgba(0,0,0,.05);
+    --shadow-md:      0 2px 8px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+    --shadow-lg:      0 4px 20px rgba(0,0,0,.10);
+
+    /* kept for backward compat */
     --success: #009f95;
-    --error: #E63946;
-    --bg: #F5F5F5;
-    --surface: #ffffff;
-    --text: #333333;
-    --text-light: #666666;
-    --border: #DDDDDD;
-    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --error:   #E63946;
 }
 
 * {
@@ -171,37 +185,16 @@ body {
 }
 
 .models-grid {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 0.5rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-}
-
-.models-grid::-webkit-scrollbar {
-    height: 4px;
-}
-
-.models-grid::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.models-grid::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 4px;
 }
 
 /* New Project card */
 .model-card-new {
-    flex: 0 0 auto;
-    width: 200px;
-    scroll-snap-align: start;
     background: var(--primary);
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     padding: 1.25rem;
     cursor: pointer;
     display: flex;
@@ -217,6 +210,7 @@ body {
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    box-shadow: var(--shadow);
 }
 
 .model-card-new:hover {
@@ -242,22 +236,55 @@ body {
 }
 
 .model-card {
-    flex: 0 0 auto;
-    width: 200px;
-    scroll-snap-align: start;
     background: var(--surface);
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    padding: 1.25rem;
-    transition: all 0.2s;
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: 0;
+    transition: box-shadow .15s;
     display: flex;
     flex-direction: column;
     position: relative;
+    box-shadow: var(--shadow);
+    overflow: hidden;
 }
 
-.model-card > .model-card-menu {
+.model-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Color accent bar at top of card */
+.model-card-accent {
+    height: 4px;
+    opacity: .85;
+    flex-shrink: 0;
+}
+
+/* Type badge */
+.model-type-badge {
+    display: inline-block;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 2px 8px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    margin-bottom: .5rem;
+}
+.model-type-badge--image { background: #E1F5EE; color: #1D9E75; }
+.model-type-badge--audio { background: #E6F1FB; color: #378ADD; }
+.model-type-badge--pose  { background: #EEEDFE; color: #7F77DD; }
+
+/* Card content wrapper (holds everything below the accent bar) */
+.model-card-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.model-card-body > .model-card-menu {
     position: absolute;
-    top: 0.5rem;
+    top: calc(4px + 0.5rem);
     right: 0.5rem;
 }
 
@@ -831,6 +858,69 @@ button, a, input {
     letter-spacing: 0.3px;
 }
 
+/* ============================================
+   TRAINING STEP INDICATOR
+   ============================================ */
+
+.training-steps {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 1.25rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+    overflow-x: auto;
+    gap: 0;
+}
+
+.training-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 .5rem;
+    height: 100%;
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.training-step.active { border-bottom-color: var(--primary); }
+.training-step.done   { border-bottom-color: var(--primary); }
+
+.step-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--text-light);
+    font-size: .65rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background .2s, color .2s;
+}
+
+.training-step.active .step-dot,
+.training-step.done   .step-dot { background: var(--primary); color: #fff; }
+
+.training-step.done .step-dot { font-size: 0; }
+.training-step.done .step-dot::before { content: '✓'; font-size: .7rem; font-weight: 900; }
+
+.step-label {
+    font-size: .8rem; font-weight: 500;
+    color: var(--text-light);
+    transition: color .2s;
+}
+
+.training-step.active .step-label { font-weight: 700; color: var(--text); }
+
+.step-divider {
+    flex: 1; height: 1px;
+    background: var(--border);
+    min-width: 12px;
+}
+
 .btn-sm {
     padding: 0.5rem 1rem;
     border-radius: 8px;
@@ -1056,26 +1146,29 @@ button, a, input {
     gap: 4px;
     padding-top: 4px;
     margin-bottom: 8px;
-    max-height: 120px;
-    overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(0,0,0,0.12) transparent;
 }
 
 .training-class-card.class-card-active .sample-gallery {
     display: flex;
+    max-height: 130px;
+    overflow-y: auto;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 6px 0 4px;
 }
 
 .sample-thumb {
     position: relative;
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     flex-shrink: 0;
 }
 
 .sample-thumb img {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     object-fit: cover;
     border-radius: 6px;
     display: block;
@@ -1083,16 +1176,16 @@ button, a, input {
 
 .btn-delete-sample {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    width: 18px;
-    height: 18px;
+    top: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    background: var(--error);
-    color: white;
-    border: 1.5px solid white;
-    font-size: 11px;
-    font-weight: 700;
+    background: #e63946;
+    color: #fff;
+    border: 1.5px solid #fff;
+    font-size: 9px;
+    font-weight: 900;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1360,6 +1453,33 @@ button, a, input {
     flex: 1;
     min-width: 0;
 }
+
+/* ============================================
+   BLUETOOTH STATUS BADGE (prediction header)
+   ============================================ */
+
+.bt-status-badge {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: .72rem; font-weight: 700;
+    flex-shrink: 0;
+    transition: background .2s, color .2s;
+}
+
+.bt-status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%; flex-shrink: 0;
+}
+
+.bt-status-badge[data-status="disconnected"] { background: #fee2e2; color: #e63946; }
+.bt-status-badge[data-status="disconnected"] .bt-status-dot { background: #e63946; }
+
+.bt-status-badge[data-status="connecting"]   { background: #fef3c7; color: #d97706; }
+.bt-status-badge[data-status="connecting"]   .bt-status-dot { background: #f59e0b; animation: pulse .6s infinite; }
+
+.bt-status-badge[data-status="connected"]    { background: #d1fae5; color: #059669; }
+.bt-status-badge[data-status="connected"]    .bt-status-dot { background: #10b981; animation: pulse 2s infinite; }
 
 .prediction-body {
     display: flex;
@@ -1751,7 +1871,7 @@ button, a, input {
     width: 100%;
     height: 100%;
     border: none;
-    min-height: 500px;
+    display: block;
 }
 
 
@@ -1801,6 +1921,10 @@ button, a, input {
     background: var(--surface);
     color: var(--primary);
     border: 1.5px solid var(--primary);
+}
+
+.btn-capture-hold-unified.capturing {
+    animation: pulse-recording .6s infinite;
 }
 
 .btn-audio-record.recording {

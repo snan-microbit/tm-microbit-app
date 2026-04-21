@@ -45,6 +45,26 @@ function getClassColor(index) {
     return CLASS_COLORS[0];
 }
 
+function updateBtBadge(status) {
+    const badge = document.getElementById('btStatusBadge');
+    if (!badge) return;
+    const labels = {
+        disconnected: 'Sin conexión',
+        connecting:   'Conectando...',
+        connected:    'Conectado',
+    };
+    badge.dataset.status = status;
+    badge.querySelector('.bt-status-label').textContent = labels[status];
+}
+
+function setTrainingStep(stepIndex) {
+    document.querySelectorAll('.training-step').forEach((el, i) => {
+        el.classList.remove('active', 'done');
+        if (i < stepIndex)  el.classList.add('done');
+        if (i === stepIndex) el.classList.add('active');
+    });
+}
+
 function getTrainer() {
     if (currentModel?.projectType === 'audio') return audioTrainer;
     if (currentModel?.projectType === 'pose') return poseTrainer;
@@ -57,6 +77,7 @@ function resetConnectionUI() {
         pConn.classList.remove('connected');
         pConn.textContent = '🔗 Conectar';
     }
+    updateBtBadge('disconnected');
 }
 setDisconnectCallback(resetConnectionUI);
 
@@ -82,31 +103,41 @@ function renderModels() {
             <span class="card-new-label">Nuevo Proyecto</span>
         </button>`;
 
-    const projectCards = models.map(model => `
+    const typeColors = { image: '#1D9E75', audio: '#378ADD', pose: '#7F77DD' };
+    const typeLabels = { image: 'Imagen',  audio: 'Audio',   pose: 'Pose'   };
+
+    const projectCards = models.map(model => {
+        const typeColor = typeColors[model.projectType] || '#009f95';
+        const typeLabel = typeLabels[model.projectType] || 'Imagen';
+        return `
         <div class="model-card">
-            <div class="class-menu-wrapper model-card-menu">
-                <button class="btn-class-menu" data-id="${model.id}" title="Opciones">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#666" stroke="none">
-                        <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
-                    </svg>
-                </button>
-                <div class="class-dropdown">
-                    <button class="class-dropdown-item danger" data-action="delete" data-id="${model.id}">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
+            <div class="model-card-accent" style="background:${typeColor};"></div>
+            <div class="model-card-body">
+                <div class="class-menu-wrapper model-card-menu">
+                    <button class="btn-class-menu" data-id="${model.id}" title="Opciones">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#666" stroke="none">
+                            <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
                         </svg>
-                        Eliminar proyecto
                     </button>
+                    <div class="class-dropdown">
+                        <button class="class-dropdown-item danger" data-action="delete" data-id="${model.id}">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
+                            </svg>
+                            Eliminar proyecto
+                        </button>
+                    </div>
+                </div>
+                <span class="model-type-badge model-type-badge--${model.projectType}">${typeLabel}</span>
+                <div class="model-card-title">${escapeHtml(model.name)}</div>
+                ${model.classNames ? `<div class="model-card-classes">${model.classNames.map(c => escapeHtml(c)).join(' · ')}</div>` : ''}
+                <div class="model-card-date">${formatDate(model.createdAt)}</div>
+                <div class="model-card-actions">
+                    <button class="btn-card btn-use" data-action="open" data-id="${model.id}">Abrir</button>
                 </div>
             </div>
-            <div class="model-card-title">${escapeHtml(model.name)}</div>
-            ${model.classNames ? `<div class="model-card-classes">${model.classNames.map(c => escapeHtml(c)).join(' · ')}</div>` : ''}
-            <div class="model-card-date">${formatDate(model.createdAt)}</div>
-            <div class="model-card-actions">
-                <button class="btn-card btn-use" data-action="open" data-id="${model.id}">Abrir</button>
-            </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 
     modelsList.innerHTML = newProjectCard + projectCards;
 
@@ -181,6 +212,7 @@ async function openPredictionScreen(model) {
     const conn = document.getElementById('predictionConnectBtn');
     conn.classList.remove('connected');
     conn.textContent = '🔗 Conectar';
+    updateBtBadge('disconnected');
 
     trainingFacingMode = 'user';
     predictionExpanded = false;
@@ -244,6 +276,7 @@ async function openPredictionScreen(model) {
 // ============================================
 
 async function openTrainingScreen(project) {
+    setTrainingStep(0);
     document.getElementById('trainingModelName').textContent = project.name;
     document.getElementById('trainBtn').disabled = true;
     const badge = document.getElementById('projectTypeBadge');
@@ -709,6 +742,7 @@ document.addEventListener('click', () => {
 });
 
 async function enterCaptureMode() {
+    setTrainingStep(0);
     trainingFacingMode = 'user';
     predictionExpanded = false;
     document.body.classList.remove('prediction-expanded');
@@ -1519,6 +1553,7 @@ document.getElementById('previewProgramBtn').addEventListener('click', () => {
 
 document.getElementById('previewBackBtn').addEventListener('click', async () => {
     closePreviewModal();
+    setTrainingStep(0);
     // Restart the training-screen webcam/visualizer that was stopped before training
     const projectType = currentModel?.projectType;
     if (projectType === 'audio') {
@@ -1556,6 +1591,7 @@ document.getElementById('trainBtn').addEventListener('click', async () => {
     }
 
     btn.disabled = true;
+    setTrainingStep(1);
 
     // Show training overlay
     const overlay = document.getElementById('trainingOverlay');
@@ -1593,6 +1629,7 @@ document.getElementById('trainBtn').addEventListener('click', async () => {
             renderTrainingClasses();
         }
 
+        setTrainingStep(2);
         await openPreviewModal();
 
     } catch (error) {
@@ -1617,10 +1654,13 @@ document.getElementById('predictionConnectBtn').addEventListener('click', async 
         disconnectMicrobit();
     } else {
         try {
+            updateBtBadge('connecting');
             await connectMicrobit();
             btn.classList.add('connected');
             btn.textContent = '❌ Desconectar';
+            updateBtBadge('connected');
         } catch (error) {
+            updateBtBadge('disconnected');
             showToast('Error al conectar', 'error');
         }
     }

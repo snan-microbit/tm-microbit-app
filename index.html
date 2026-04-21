@@ -71,6 +71,23 @@ console.log('✅ MediaPipe loaded (self-hosted)');
                 <span class="project-type-badge" id="projectTypeBadge"></span>
             </header>
 
+            <div class="training-steps" id="trainingSteps">
+                <div class="training-step active" data-step="0">
+                    <div class="step-dot">1</div>
+                    <span class="step-label">Capturar muestras</span>
+                </div>
+                <div class="step-divider"></div>
+                <div class="training-step" data-step="1">
+                    <div class="step-dot">2</div>
+                    <span class="step-label">Entrenar modelo</span>
+                </div>
+                <div class="step-divider"></div>
+                <div class="training-step" data-step="2">
+                    <div class="step-dot">3</div>
+                    <span class="step-label">Probar modelo</span>
+                </div>
+            </div>
+
             <div class="training-capture-section" id="trainingCaptureSection">
                 <div class="capture-webcam-column">
                     <div class="capture-visor-wrap">
@@ -119,6 +136,14 @@ console.log('✅ MediaPipe loaded (self-hosted)');
                             </svg>
                         </button>
                         <h2 id="predictionModelName">Proyecto</h2>
+                        <div class="bt-status-badge" id="btStatusBadge" data-status="disconnected">
+                            <span class="bt-status-dot"></span>
+                            <span class="bt-status-label">Sin conexión</span>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/>
+                            </svg>
+                        </div>
                     </header>
 
                     <div class="prediction-main-content">
