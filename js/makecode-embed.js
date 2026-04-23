@@ -37,7 +37,7 @@
             "dependencies": {
                 "core": "*",
                 "bluetooth": "*",
-                "pxt-tm-microbit-link": "github:snan-microbit/pxt-tm-microbit-link-v2#44114b2f5a14f779de5b0c5d56b9a4f0a6db4bb7"
+                "pxt-tm-microbit-link": "github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da"
             }, 
             "files": ["main.blocks", "main.ts", "tm-classes.ts", "README.md"],
             "yotta": { "config": { "microbit-dal": { "bluetooth": { "open": 1 } } } }

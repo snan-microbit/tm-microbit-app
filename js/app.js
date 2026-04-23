@@ -1317,15 +1317,20 @@ async function startPreviewAudio(wrapper, classNames) {
 function renderPreviewPredictions(predictions, classNames) {
     if (!predictions || !predictions.length) return;
 
+    // Build name → probability map. Audio predictions arrive in alphabetical
+    // order (from transfer.wordLabels()), while preview cards were rendered
+    // in creation order. Matching by name avoids the label-swap bug.
+    const probByName = new Map();
     let maxProb = -1;
-    let winnerIdx = -1;
-    predictions.forEach((pred, i) => {
+    let winnerName = null;
+    predictions.forEach(pred => {
         const prob = pred.probability ?? pred.score ?? 0;
-        if (prob > maxProb) { maxProb = prob; winnerIdx = i; }
+        probByName.set(pred.className, prob);
+        if (prob > maxProb) { maxProb = prob; winnerName = pred.className; }
     });
 
-    predictions.forEach((pred, i) => {
-        const prob = pred.probability ?? pred.score ?? 0;
+    classNames.forEach((name, i) => {
+        const prob = probByName.get(name) ?? 0;
         const pct = Math.round(prob * 100);
         const card = document.getElementById(`previewCard-${i}`);
         const pctEl = document.getElementById(`previewPct-${i}`);
@@ -1335,7 +1340,7 @@ function renderPreviewPredictions(predictions, classNames) {
         pctEl.textContent = `${pct}%`;
         fillEl.style.width = `${pct}%`;
 
-        if (i === winnerIdx) {
+        if (name === winnerName) {
             card.classList.add('winner');
             card.style.borderLeftColor = card.dataset.color;
             pctEl.style.color = card.dataset.color;
