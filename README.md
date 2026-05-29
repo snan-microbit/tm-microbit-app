@@ -146,9 +146,3 @@ tm-microbit-app/
         ├── predictions.js
         └── README.md
 ```
-
-## Branding Ceibal
-
-- Color primario: `#009f95` (turquesa Ceibal)
-- Tipografía: Nunito
-- Iconos personalizados con laptop + micro:bit
