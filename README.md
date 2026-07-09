@@ -98,7 +98,7 @@ El iframe de MakeCode está pineado a `v7.1.47` (`makecode-embed.js`, constante 
 | Storage | IndexedDB — modelos vía `indexeddb://` (tf.io), muestras en object store propio |
 | Bluetooth | Web Bluetooth API (UART) con keep-alive cada 2 minutos |
 | MakeCode | Iframe embebido en v7.1.47 + comunicación `postMessage` |
-| PWA | Service Worker (network-first) + Web App Manifest |
+| PWA | Service Worker (cache-first en `vendor/`, network-first en el resto) + Web App Manifest |
 
 ### Pipelines de inferencia
 
@@ -125,7 +125,7 @@ Webcam → PoseLandmarker → 33 keypoints (99 floats: x, y, z) → Dense(64, re
 tm-microbit-app/
 ├── index.html              # UI principal (todas las pantallas + modales)
 ├── manifest.json           # PWA manifest
-├── sw.js                   # Service Worker (network-first, v4.5)
+├── sw.js                   # Service Worker (cache-first en vendor/, network-first en el resto)
 ├── assets/
 │   ├── icon-192.png        # Iconos PWA
 │   └── icon-512.png
