@@ -12,6 +12,9 @@ const urlsToCache = [
   './index.html',
   './css/styles.css',
   './manifest.json',
+  // App icons (referenced by index.html header and manifest)
+  './assets/icon-192.png',
+  './assets/icon-512.png',
   // App scripts
   './js/app.js',
   './js/project-store.js',
