@@ -79,7 +79,7 @@ body {
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: none;
 }
 
 .container {
@@ -1272,7 +1272,7 @@ button, a, input {
 }
 
 .prediction-main-column {
-    flex: 0 0 320px;
+    flex: 0 0 clamp(300px, 26vw, 380px);
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -1841,50 +1841,66 @@ button, a, input {
 }
 
 @media (max-width: 1023px) {
-    /* prediction screen: MakeCode arriba, video+preds abajo */
+    /* prediction screen: MakeCode protagonista (>=2/3 de la altura) arriba,
+       video + predicciones abajo. .prediction-main-column pasa a
+       display:contents para que su header y su contenido puedan
+       reordenarse de forma independiente respecto al panel de MakeCode,
+       que en el DOM viene despues pero visualmente va en el medio. */
     .prediction-body {
-        flex-direction: column-reverse;
+        flex-direction: column;
     }
 
     .prediction-main-column {
-        flex: 1;
+        display: contents;
+    }
+
+    .prediction-header {
+        order: 0;
+    }
+
+    .makecode-inline-panel {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+        border-left: none;
+        border-bottom: 1px solid var(--border);
+        min-height: min(66vh, calc(100vh - 200px));
+        min-height: min(66svh, calc(100svh - 200px));
+    }
+
+    .makecode-inline-panel iframe {
         min-height: 0;
-        overflow: hidden;
-        border-right: none;
-        border-top: 1px solid var(--border);
     }
 
     .prediction-main-content {
+        order: 2;
+        flex: 0 1 auto;
+        min-height: 0;
         flex-direction: row;
         flex-wrap: wrap;
+        align-items: flex-start;
         gap: 0.5rem;
         padding: 0.5rem;
         overflow-y: auto;
     }
 
-    .prediction-body .makecode-inline-panel {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        border-left: none;
-        border-bottom: 1px solid var(--border);
-    }
-
-    .prediction-body .makecode-inline-panel iframe {
-        min-height: 0;
-    }
-
     .prediction-webcam-wrapper {
-        width: 160px;
-        height: 160px;
-        aspect-ratio: auto;
+        width: clamp(120px, 24vh, 220px);
+        width: clamp(120px, 24dvh, 220px);
+        aspect-ratio: 1;
+        min-height: 0;
         flex-shrink: 0;
         border-radius: 8px;
     }
 
     .prediction-webcam-wrapper canvas {
-        width: 160px !important;
-        height: 160px !important;
+        width: 100%;
+        height: 100%;
+    }
+
+    .predictions-card {
+        flex: 1 1 180px;
+        min-width: 0;
     }
 
     .prediction-item {

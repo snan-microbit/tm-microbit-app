@@ -1632,24 +1632,6 @@ document.getElementById('predictionConnectBtn').addEventListener('click', async 
 });
 
 // ============================================
-// PULL-TO-REFRESH PREVENTION
-// ============================================
-
-let touchStartY = 0;
-
-document.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-}, { passive: false });
-
-document.addEventListener('touchmove', (e) => {
-    const predictionScreen = document.getElementById('predictionScreen');
-    if (!predictionScreen.classList.contains('hidden')) {
-        const touchDelta = e.touches[0].clientY - touchStartY;
-        if (touchDelta > 0 && window.scrollY === 0) e.preventDefault();
-    }
-}, { passive: false });
-
-// ============================================
 // INIT
 // ============================================
 
