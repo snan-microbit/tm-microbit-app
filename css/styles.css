@@ -323,6 +323,20 @@ body {
     border-color: var(--text-light);
 }
 
+@media (max-width: 639px) {
+    .models-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        overflow-x: visible;
+        scroll-snap-type: none;
+    }
+
+    .model-card-new,
+    .model-card {
+        width: auto;
+    }
+}
+
 .empty-state {
     text-align: center;
     padding: 3rem 1rem;
@@ -595,6 +609,12 @@ body.prediction-expanded #prediction-predictions {
 
 .modal.hidden {
     display: none;
+}
+
+@media (max-width: 639px) {
+    .modal {
+        padding: 0.75rem;
+    }
 }
 
 .modal-content {
@@ -1301,7 +1321,7 @@ button, a, input {
     border-radius: 2px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 639px), (max-width: 1023px) and (orientation: portrait) {
     .training-capture-section {
         flex-direction: column;
         overflow: hidden;
@@ -1338,9 +1358,12 @@ button, a, input {
         flex: 1;
         min-height: 0;
     }
+    .capture-visor-wrap {
+        width: min(100%, 40vh);
+        width: min(100%, 40svh);
+    }
     .capture-webcam-container {
-        width: 70%;
-        max-width: 280px;
+        width: 100%;
     }
 }
 
@@ -2077,7 +2100,7 @@ button, a, input {
 }
 
 .preview-classes-col {
-    width: 270px;
+    width: clamp(200px, 32%, 270px);
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -2204,7 +2227,7 @@ button, a, input {
     border: 1px solid #e0e0e0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
     .preview-modal {
         padding: 0;
     }
