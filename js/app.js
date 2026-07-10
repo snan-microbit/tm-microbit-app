@@ -1657,4 +1657,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderModels();
 });
 
+// ============================================
+// SERVICE WORKER (PWA / offline)
+// ============================================
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('[SW] Registrado, scope:', reg.scope))
+            .catch(err => console.warn('[SW] Registro falló:', err));
+    });
+}
+
 export { showToast };
