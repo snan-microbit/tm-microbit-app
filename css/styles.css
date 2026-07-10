@@ -295,7 +295,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     border: none;
-    min-height: 36px;
+    min-height: 40px;
     touch-action: manipulation;
 }
 
@@ -795,9 +795,9 @@ button, a, input {
 }
 
 .training-header .btn-back {
-    padding: 4px;
-    min-width: 28px;
-    min-height: 28px;
+    padding: 2px;
+    min-width: 40px;
+    min-height: 40px;
     background: rgba(255, 255, 255, 0.2);
     border: none;
     border-radius: 6px;
@@ -901,6 +901,9 @@ button, a, input {
     display: block;
     flex-shrink: 0;
     transition: opacity 0.15s;
+    box-sizing: content-box;
+    padding: 7px;
+    margin: -7px;
 }
 
 .pencil-edit-icon:hover {
@@ -948,7 +951,7 @@ button, a, input {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 34px;
+    min-height: 40px;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
@@ -1007,14 +1010,14 @@ button, a, input {
 
 .sample-thumb {
     position: relative;
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     flex-shrink: 0;
 }
 
 .sample-thumb img {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     object-fit: cover;
     border-radius: 6px;
     display: block;
@@ -1024,13 +1027,13 @@ button, a, input {
     position: absolute;
     top: -5px;
     right: -5px;
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: var(--error);
     color: white;
     border: 1.5px solid white;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     display: flex;
@@ -1039,6 +1042,12 @@ button, a, input {
     padding: 0;
     line-height: 1;
     z-index: 1;
+}
+
+.btn-delete-sample::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
 }
 
 .btn-delete-sample:active {
@@ -1232,9 +1241,9 @@ button, a, input {
 }
 
 .prediction-header .btn-back {
-    padding: 4px;
-    min-width: 28px;
-    min-height: 28px;
+    padding: 2px;
+    min-width: 40px;
+    min-height: 40px;
     background: rgba(255, 255, 255, 0.2);
     border: none;
     border-radius: 6px;
@@ -1436,8 +1445,8 @@ button, a, input {
     justify-content: center;
     opacity: 0.6;
     transition: opacity 0.15s, background 0.15s;
-    min-width: 26px;
-    min-height: 26px;
+    min-width: 40px;
+    min-height: 40px;
 }
 
 .btn-class-menu:hover {
@@ -1469,6 +1478,7 @@ button, a, input {
     gap: 0.5rem;
     width: 100%;
     padding: 0.5rem 0.75rem;
+    min-height: 40px;
     background: none;
     border: none;
     cursor: pointer;
@@ -1641,7 +1651,7 @@ button, a, input {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 34px;
+    min-height: 40px;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
@@ -1889,11 +1899,6 @@ button, a, input {
     .confidence {
         font-size: 0.875rem;
     }
-
-    .btn-video-action {
-        width: 32px;
-        height: 32px;
-    }
 }
 
 /* MakeCode fallback overlay (shown when MakeCode iframe fails to load) */
@@ -1938,7 +1943,7 @@ button, a, input {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
+    padding: 8px 14px;
     background: #009f95;
     flex-shrink: 0;
 }
@@ -1955,6 +1960,7 @@ button, a, input {
     border: 1px solid rgba(255, 255, 255, 0.5);
     color: #fff;
     padding: 6px 14px;
+    min-height: 40px;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 600;
