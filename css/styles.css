@@ -524,13 +524,6 @@ body.prediction-expanded #prediction-predictions {
     max-width: var(--expanded-video-size, 100%);
 }
 
-body.prediction-expanded .prediction-actions {
-    align-self: center;
-    width: 100%;
-    max-width: var(--expanded-video-size, 100%);
-    padding: 0 0 0.5rem;
-}
-
 .prediction-item {
     padding: 10px 12px;
     background: #fff;
@@ -845,59 +838,6 @@ button, a, input {
     cursor: not-allowed;
 }
 
-.training-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-    overflow-y: auto;
-    min-height: 0;
-}
-
-.training-webcam-container {
-    background: var(--surface);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    width: 100%;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    flex-shrink: 0;
-}
-
-#training-webcam-wrapper {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#training-webcam-wrapper canvas {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto !important;
-    height: auto !important;
-}
-
-.training-classes-panel {
-    background: var(--surface);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    padding: 1rem;
-    flex: 1;
-}
-
-.training-classes-panel h3 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 0.75rem;
-}
-
 .training-class-card {
     background: var(--surface);
     border: 1px solid #d4ede9;
@@ -986,12 +926,11 @@ button, a, input {
 
 .class-capture-buttons {
     display: flex;
+    flex-direction: row;
     gap: 8px;
     margin-bottom: 10px;
 }
 
-.btn-capture-one,
-.btn-capture-hold,
 .btn-capture-one-unified,
 .btn-capture-hold-unified {
     width: auto;
@@ -1011,14 +950,12 @@ button, a, input {
     touch-action: manipulation;
 }
 
-.btn-capture-one,
 .btn-capture-one-unified {
     background: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
 }
 
-.btn-capture-one:active,
 .btn-capture-one-unified:active {
     background: var(--bg);
     transform: scale(0.98);
@@ -1029,13 +966,11 @@ button, a, input {
     filter: brightness(0.9);
 }
 
-.btn-capture-hold,
 .btn-capture-hold-unified {
     color: white;
     border: none;
 }
 
-.btn-capture-hold:active,
 .btn-capture-hold-unified:active {
     filter: brightness(0.9);
     transform: scale(0.98);
@@ -1105,31 +1040,6 @@ button, a, input {
 .btn-delete-sample:active {
     background: #c5303e;
     transform: scale(0.9);
-}
-
-
-.btn-add-class {
-    width: auto;
-    align-self: flex-start;
-    margin-top: 0.75rem;
-    padding: 0.5rem 0.875rem;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 700;
-    background: var(--surface);
-    color: var(--primary);
-    border: 2px dashed var(--primary);
-    cursor: pointer;
-    font-family: inherit;
-    touch-action: manipulation;
-}
-
-.btn-add-class:hover {
-    background: rgba(0, 159, 149, 0.08);
-}
-
-.btn-add-class:active {
-    background: #e8f5f4;
 }
 
 .training-actions {
@@ -1228,31 +1138,6 @@ button, a, input {
     color: var(--text-light);
     margin-top: 0.25rem;
     display: block;
-}
-
-/* ============================================
-   TRAINING SCREEN - DESKTOP RESPONSIVE
-   ============================================ */
-
-@media (min-width: 768px) {
-    .training-content {
-        flex-direction: row;
-        padding: 1.5rem;
-        gap: 1.5rem;
-        overflow: hidden;
-    }
-
-    .training-webcam-container {
-        flex: 1;
-        aspect-ratio: auto;
-        max-width: 50%;
-    }
-
-    .training-classes-panel {
-        flex: 1;
-        overflow-y: auto;
-        min-height: 0;
-    }
 }
 
 /* ============================================
@@ -1466,10 +1351,6 @@ button, a, input {
     background: transparent;
 }
 
-.btn-add-class {
-    flex-shrink: 0;
-}
-
 /* ===== Classes card (training screen) ===== */
 
 .classes-card {
@@ -1612,13 +1493,6 @@ button, a, input {
     background: #fef2f2;
 }
 
-/* Acciones en la sección de predicciones */
-.prediction-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-}
-
 /* ===== Tarjeta de predicciones ===== */
 
 .predictions-card {
@@ -1724,13 +1598,6 @@ button, a, input {
     display: block;
 }
 
-.training-predictions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-
 /* MakeCode inline panel */
 .makecode-inline-panel {
     flex: 1;
@@ -1741,25 +1608,12 @@ button, a, input {
     overflow: hidden;
 }
 
-.makecode-inline-panel.hidden {
-    display: none;
-}
-
-
 .makecode-inline-panel iframe {
     flex: 1;
     width: 100%;
     height: 100%;
     border: none;
     min-height: 500px;
-}
-
-
-.class-capture-buttons {
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-    margin-bottom: 0.625rem;
 }
 
 /* ============================================
@@ -2015,11 +1869,6 @@ button, a, input {
         height: 160px !important;
     }
 
-    .training-predictions {
-        flex: 1;
-        min-width: 100px;
-    }
-
     .prediction-item {
         padding: 0.5rem 0.625rem;
     }
@@ -2031,10 +1880,6 @@ button, a, input {
     .class-name,
     .confidence {
         font-size: 0.875rem;
-    }
-
-    .prediction-actions {
-        width: 100%;
     }
 
     .btn-video-action {
