@@ -517,6 +517,7 @@ body.prediction-expanded #prediction-predictions {
     padding: 0.5rem 0;
     background: var(--bg);
     max-height: 35vh;
+    max-height: 35dvh;
     overflow-y: auto;
     flex-shrink: 0;
     width: 100%;
@@ -602,6 +603,7 @@ body.prediction-expanded #prediction-predictions {
     width: 100%;
     max-width: 500px;
     max-height: 90vh;
+    max-height: 90dvh;
     overflow-y: auto;
 }
 
@@ -775,6 +777,8 @@ button, a, input {
 .training-layout {
     min-height: 100vh;
     max-height: 100vh;
+    min-height: 100dvh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
 }
@@ -1169,11 +1173,13 @@ button, a, input {
     top: 0;
     align-self: flex-start;
     max-height: 100vh;
+    max-height: 100dvh;
 }
 
 .capture-visor-wrap {
     position: relative;
     width: min(100%, calc(100vh - 80px));
+    width: min(100%, calc(100dvh - 80px));
     aspect-ratio: 1;
     border-radius: 12px;
     overflow: hidden;
@@ -1208,6 +1214,8 @@ button, a, input {
 .prediction-layout {
     min-height: 100vh;
     max-height: 100vh;
+    min-height: 100dvh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
 }
@@ -1986,6 +1994,7 @@ button, a, input {
     width: 100%;
     max-width: 900px;
     max-height: 95vh;
+    max-height: 95dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2181,8 +2190,10 @@ button, a, input {
     .preview-modal-content {
         max-width: 100%;
         max-height: 100vh;
+        max-height: 100dvh;
         border-radius: 0;
         height: 100vh;
+        height: 100dvh;
     }
 
     .preview-modal-body {
@@ -2196,6 +2207,7 @@ button, a, input {
     .preview-visor-wrapper {
         min-height: 180px;
         max-height: 40vh;
+        max-height: 40dvh;
     }
 
     .preview-classes-col {
