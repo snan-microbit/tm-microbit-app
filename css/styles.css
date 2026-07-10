@@ -1900,16 +1900,18 @@ button, a, input {
         flex: 0 1 auto;
         min-height: 0;
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: flex-start;
         gap: 0.5rem;
         padding: 0.5rem;
         overflow-y: auto;
     }
 
+    /* Video a la izquierda, mas chico para dejarle lugar a las
+       predicciones a la derecha (nowrap: nunca se apilan). */
     .prediction-webcam-wrapper {
-        width: clamp(120px, 24vh, 220px);
-        width: clamp(120px, 24dvh, 220px);
+        width: clamp(100px, 22vh, 180px);
+        width: clamp(100px, 22dvh, 180px);
         aspect-ratio: 1;
         min-height: 0;
         flex-shrink: 0;
@@ -1921,9 +1923,14 @@ button, a, input {
         height: 100%;
     }
 
+    /* Predicciones a la derecha del video, ocupando el resto del ancho */
     .predictions-card {
-        flex: 1 1 180px;
+        flex: 1 1 0;
         min-width: 0;
+    }
+
+    .predictions-card-footer {
+        flex-direction: column;
     }
 
     .prediction-item {
