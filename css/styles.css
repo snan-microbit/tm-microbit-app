@@ -1863,12 +1863,16 @@ button, a, input {
     background: var(--primary);
 }
 
-@media (max-width: 1023px) {
-    /* prediction screen: MakeCode protagonista (>=2/3 de la altura) arriba,
-       video + predicciones abajo. .prediction-main-column pasa a
-       display:contents para que su header y su contenido puedan
+@media (max-width: 1023px) and (orientation: portrait) {
+    /* prediction screen en vertical: MakeCode protagonista (>=2/3 de la
+       altura) arriba, video + predicciones abajo. .prediction-main-column
+       pasa a display:contents para que su header y su contenido puedan
        reordenarse de forma independiente respecto al panel de MakeCode,
-       que en el DOM viene despues pero visualmente va en el medio. */
+       que en el DOM viene despues pero visualmente va en el medio.
+       En horizontal se usa un layout distinto (ver bloque
+       "orientation: landscape" mas abajo): hay ancho de sobra y poca
+       altura, asi que ahi no tiene sentido reservarle 2/3 de la
+       pantalla a MakeCode. */
     .prediction-body {
         flex-direction: column;
     }
@@ -1928,12 +1932,38 @@ button, a, input {
         width: 100%;
         height: 100%;
     }
+}
 
-    /* Predicciones a la derecha del video, ocupando el resto del ancho
-       y estirandose a toda la altura de la fila (igual que .classes-card
-       en la pantalla de entrenamiento): el footer (Conectar/Reentrenar)
-       queda siempre fijo y visible, y solo la lista de clases scrollea
-       internamente si no entran todas. */
+@media (max-width: 1023px) and (orientation: landscape) {
+    /* Celular/tablet en horizontal: layout parecido al de escritorio
+       (video + predicciones apiladas en una columna a la izquierda,
+       MakeCode a la derecha) en vez del apilado de "orientation:
+       portrait". Se reutiliza la estructura base (desktop), solo
+       se achican los minimos para que entren en anchos de celular. */
+    .prediction-main-column {
+        flex: 0 0 clamp(220px, 30vw, 320px);
+    }
+
+    .makecode-inline-panel {
+        min-width: 280px;
+    }
+
+    .makecode-inline-panel iframe {
+        min-height: 0;
+    }
+
+    .prediction-main-content {
+        padding: 0.75rem;
+        gap: 0.5rem;
+        overflow: hidden;
+    }
+}
+
+@media (max-width: 1023px) {
+    /* Compactacion de la tarjeta de predicciones, comun a vertical y
+       horizontal: la lista de clases scrollea internamente (igual que
+       .classes-card-body en la pantalla de entrenamiento) y el footer
+       (Conectar/Reentrenar) queda siempre fijo y visible. */
     .predictions-card {
         flex: 1 1 0;
         min-width: 0;
@@ -1950,9 +1980,9 @@ button, a, input {
         flex-shrink: 0;
     }
 
-    /* La tarjeta se angosta al compartir fila con el video: los botones
-       necesitan poder achicarse (min-width:0) y truncar con ellipsis en
-       vez de desbordar o quedar cortados a lo bruto. */
+    /* Los botones necesitan poder achicarse (min-width:0) y truncar con
+       ellipsis en vez de desbordar o quedar cortados a lo bruto cuando
+       la tarjeta queda angosta. */
     .btn-pred-connect,
     .btn-pred-retrain {
         min-width: 0;
