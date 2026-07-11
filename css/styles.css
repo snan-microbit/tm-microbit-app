@@ -1901,10 +1901,16 @@ button, a, input {
         min-height: 0;
         flex-direction: row;
         flex-wrap: nowrap;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 0.5rem;
         padding: 0.5rem;
-        overflow-y: auto;
+        overflow: hidden;
+    }
+
+    /* El video no se estira: mantiene su tamaño cuadrado y queda
+       arriba, aunque la tarjeta de predicciones ocupe toda la fila. */
+    .prediction-video-area {
+        align-self: flex-start;
     }
 
     /* Video a la izquierda, mas chico para dejarle lugar a las
@@ -1923,14 +1929,38 @@ button, a, input {
         height: 100%;
     }
 
-    /* Predicciones a la derecha del video, ocupando el resto del ancho */
+    /* Predicciones a la derecha del video, ocupando el resto del ancho
+       y estirandose a toda la altura de la fila (igual que .classes-card
+       en la pantalla de entrenamiento): el footer (Conectar/Reentrenar)
+       queda siempre fijo y visible, y solo la lista de clases scrollea
+       internamente si no entran todas. */
     .predictions-card {
         flex: 1 1 0;
         min-width: 0;
+        min-height: 0;
+    }
+
+    .predictions-card-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
     }
 
     .predictions-card-footer {
-        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    /* La tarjeta se angosta al compartir fila con el video: los botones
+       necesitan poder achicarse (min-width:0) y truncar con ellipsis en
+       vez de desbordar o quedar cortados a lo bruto. */
+    .btn-pred-connect,
+    .btn-pred-retrain {
+        min-width: 0;
+        padding: 0.5rem 0.5rem;
+        font-size: 0.75rem;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 
     .prediction-item {
