@@ -1,12 +1,20 @@
 // sw.js
-// Service Worker for PWA - Network First Strategy
+// Service Worker for PWA - Hybrid caching strategy:
+// - /vendor/* (TF.js, MediaPipe, MobileNet, fonts): cache-first. These files
+//   are versioned in their filename/path and never change in place, so there's
+//   no reason to re-fetch ~28MB of them over the network on every load.
+// - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
+//   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'tm-microbit-v6.4';
+const CACHE_NAME = 'tm-microbit-v7.0';
 const urlsToCache = [
   './',
   './index.html',
   './css/styles.css',
   './manifest.json',
+  // App icons (referenced by index.html header and manifest)
+  './assets/icon-192.png',
+  './assets/icon-512.png',
   // App scripts
   './js/app.js',
   './js/project-store.js',
@@ -127,8 +135,28 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - NETWORK FIRST strategy (better for development)
+// Fetch event - hybrid strategy
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  if (url.pathname.includes('/vendor/')) {
+    // Cache-first: immutable, versioned vendor assets (models, wasm, libs, fonts).
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Network-first: app shell (HTML/CSS/JS), so updates are picked up immediately.
   event.respondWith(
     fetch(event.request)
       .then((response) => {

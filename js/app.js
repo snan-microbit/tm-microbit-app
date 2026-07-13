@@ -1632,29 +1632,23 @@ document.getElementById('predictionConnectBtn').addEventListener('click', async 
 });
 
 // ============================================
-// PULL-TO-REFRESH PREVENTION
-// ============================================
-
-let touchStartY = 0;
-
-document.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-}, { passive: false });
-
-document.addEventListener('touchmove', (e) => {
-    const predictionScreen = document.getElementById('predictionScreen');
-    if (!predictionScreen.classList.contains('hidden')) {
-        const touchDelta = e.touches[0].clientY - touchStartY;
-        if (touchDelta > 0 && window.scrollY === 0) e.preventDefault();
-    }
-}, { passive: false });
-
-// ============================================
 // INIT
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     renderModels();
 });
+
+// ============================================
+// SERVICE WORKER (PWA / offline)
+// ============================================
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('[SW] Registrado, scope:', reg.scope))
+            .catch(err => console.warn('[SW] Registro falló:', err));
+    });
+}
 
 export { showToast };
