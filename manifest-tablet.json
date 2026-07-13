@@ -1,0 +1,25 @@
+{
+  "name": "ML - micro:bit",
+  "short_name": "ML-micro:bit",
+  "description": "Conecta modelos de Machine Learning con micro:bit vía Bluetooth",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "background_color": "#ffffff",
+  "theme_color": "#009f95",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -2366,3 +2366,49 @@ button, a, input {
         gap: 8px;
     }
 }
+
+/* ROTATE OVERLAY: fuerza el uso horizontal en tablets. Se activa solo con
+   pointer:coarse + hover:none (excluye desktop/laptop, incluso con ventanas
+   angostas-altas) y min-width/min-height >=600px simultaneos (excluye
+   celulares: su lado corto siempre queda por debajo de 600px en cualquier
+   rotacion, mientras que una tablet 1280x800 supera 600px en ambos ejes
+   sin importar como este orientada). Sin boton para cerrar: bloqueo real. */
+.rotate-overlay-icon {
+    animation: rotate-overlay-hint 1.6s ease-in-out infinite;
+}
+
+@keyframes rotate-overlay-hint {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-90deg); }
+}
+
+#rotateOverlay {
+    display: none;
+}
+
+@media (pointer: coarse) and (hover: none) and (min-width: 600px) and (min-height: 600px) and (orientation: portrait) {
+    #rotateOverlay {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding: 2rem;
+        background: var(--bg);
+        color: var(--text);
+        text-align: center;
+    }
+
+    #rotateOverlay svg {
+        color: var(--primary);
+    }
+
+    #rotateOverlay p {
+        max-width: 320px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+}

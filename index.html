@@ -18,8 +18,17 @@
     <script>
         // Tablets y celulares (input táctil primario, sin mouse/trackpad)
         // instalan en modo pantalla completa; laptops/desktop siguen en
-        // "standalone" (con la barra de estado del SO visible).
-        if (matchMedia('(pointer: coarse) and (hover: none)').matches) {
+        // "standalone" (con la barra de estado del SO visible). Entre los
+        // táctiles, las tablets (lado corto de pantalla >=600px, mismo
+        // umbral que usa Android para sw600dp) reciben ademas un manifest
+        // con orientation:landscape para que el SO bloquee la rotacion
+        // donde lo soporte (ver overlay de "gira la tablet" en el CSS,
+        // que es la garantia real independiente de plataforma).
+        var isTouch = matchMedia('(pointer: coarse) and (hover: none)').matches;
+        var isTabletSize = matchMedia('(min-width: 600px) and (min-height: 600px)').matches;
+        if (isTouch && isTabletSize) {
+            document.getElementById('manifestLink').href = 'manifest-tablet.json';
+        } else if (isTouch) {
             document.getElementById('manifestLink').href = 'manifest-fullscreen.json';
         }
     </script>
@@ -40,6 +49,16 @@ console.log('✅ MediaPipe loaded (self-hosted)');
 </script>
 </head>
 <body>
+    <!-- ROTATE OVERLAY: bloquea el uso en tablets sostenidas en vertical.
+         Puramente CSS (ver css/styles.css), no requiere JS/listeners. -->
+    <div id="rotateOverlay">
+        <svg class="rotate-overlay-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16.48 2.52a1 1 0 0 1 1.41 0l3.59 3.59a1 1 0 0 1 0 1.41l-3.59 3.59a1 1 0 0 1-1.41-1.41L18.59 8H14a5 5 0 0 0-5 5v1a1 1 0 1 1-2 0v-1a7 7 0 0 1 7-7h4.59l-2.11-2.11a1 1 0 0 1 0-1.41Z" fill="currentColor"/>
+            <rect x="3" y="13" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Girá la tablet a horizontal para usar la app</p>
+    </div>
+
     <!-- HOME SCREEN -->
     <div class="screen" id="homeScreen">
         <div class="container">
