@@ -1250,7 +1250,14 @@ button, a, input {
 }
 
 .prediction-header {
-    height: 44px;
+    /* Altura calcada del header propio de MakeCode (medida en vivo),
+       para que ambos queden alineados donde se muestran lado a lado
+       (escritorio y horizontal). MakeCode usa 63.9844px cuando su
+       propio ancho supera 330px y 55.9961px si es mas angosto — en
+       todo nuestro rango soportado (columna de MakeCode siempre
+       bastante mas ancha que eso) cae siempre en el primer caso. En
+       vertical no aplica: el header propio queda colapsado a 0px. */
+    height: 64px;
     padding: 0 0.75rem;
     display: flex;
     align-items: center;
