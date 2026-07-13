@@ -6,14 +6,13 @@
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'tm-microbit-v7.1';
+const CACHE_NAME = 'tm-microbit-v7.2';
 const urlsToCache = [
   './',
   './index.html',
   './css/styles.css',
   './manifest.json',
   './manifest-fullscreen.json',
-  './manifest-tablet.json',
   // App icons (referenced by index.html header and manifest)
   './assets/icon-192.png',
   './assets/icon-512.png',

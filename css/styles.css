@@ -1872,102 +1872,6 @@ button, a, input {
     background: var(--primary);
 }
 
-@media (max-width: 1023px) and (orientation: portrait) {
-    /* prediction screen en vertical: MakeCode protagonista (>=2/3 de la
-       altura) arriba, video + predicciones abajo. .prediction-main-column
-       pasa a display:contents para que su header y su contenido puedan
-       reordenarse de forma independiente respecto al panel de MakeCode,
-       que en el DOM viene despues pero visualmente va en el medio.
-       En horizontal se usa un layout distinto (ver bloque
-       "orientation: landscape" mas abajo): hay ancho de sobra y poca
-       altura, asi que ahi no tiene sentido reservarle 2/3 de la
-       pantalla a MakeCode. */
-    .prediction-body {
-        flex-direction: column;
-    }
-
-    .prediction-main-column {
-        display: contents;
-    }
-
-    /* MakeCode ya tiene su propia barra superior; mostrar la nuestra
-       completa duplicaba el header. Se colapsa a 0 de alto (nombre de
-       proyecto oculto) y solo queda un boton circular flotante para
-       volver, superpuesto en la esquina de arriba — mismo patron que
-       los botones de flip/expandir del video. */
-    .prediction-header {
-        order: 0;
-        height: 0;
-        padding: 0;
-        overflow: visible;
-        background: transparent;
-        position: relative;
-        z-index: 20;
-    }
-
-    .prediction-header h2 {
-        display: none;
-    }
-
-    .prediction-header .btn-back {
-        position: absolute;
-        top: 0.5rem;
-        left: 0.5rem;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        border-radius: 50%;
-    }
-
-    .makecode-inline-panel {
-        order: 1;
-        flex: 1 1 auto;
-        min-width: 0;
-        border-left: none;
-        border-bottom: 1px solid var(--border);
-        min-height: min(66vh, calc(100vh - 200px));
-        min-height: min(66svh, calc(100svh - 200px));
-    }
-
-    .makecode-inline-panel iframe {
-        min-height: 0;
-    }
-
-    .prediction-main-content {
-        order: 2;
-        flex: 0 1 auto;
-        min-height: 0;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: stretch;
-        gap: 0.5rem;
-        padding: 0.5rem;
-        overflow: hidden;
-    }
-
-    /* El video no se estira: mantiene su tamaño cuadrado y queda
-       arriba, aunque la tarjeta de predicciones ocupe toda la fila. */
-    .prediction-video-area {
-        align-self: flex-start;
-    }
-
-    /* Video a la izquierda, mas chico para dejarle lugar a las
-       predicciones a la derecha (nowrap: nunca se apilan). */
-    .prediction-webcam-wrapper {
-        width: clamp(100px, 22vh, 180px);
-        width: clamp(100px, 22dvh, 180px);
-        aspect-ratio: 1;
-        min-height: 0;
-        flex-shrink: 0;
-        border-radius: 8px;
-    }
-
-    .prediction-webcam-wrapper canvas {
-        width: 100%;
-        height: 100%;
-    }
-}
-
 @media (max-width: 1023px) and (orientation: landscape) {
     /* Celular/tablet en horizontal: layout parecido al de escritorio
        (video + predicciones apiladas en una columna a la izquierda,
@@ -2367,12 +2271,11 @@ button, a, input {
     }
 }
 
-/* ROTATE OVERLAY: fuerza el uso horizontal en tablets. Se activa solo con
-   pointer:coarse + hover:none (excluye desktop/laptop, incluso con ventanas
-   angostas-altas) y min-width/min-height >=600px simultaneos (excluye
-   celulares: su lado corto siempre queda por debajo de 600px en cualquier
-   rotacion, mientras que una tablet 1280x800 supera 600px en ambos ejes
-   sin importar como este orientada). Sin boton para cerrar: bloqueo real. */
+/* ROTATE OVERLAY: fuerza el uso horizontal en cualquier dispositivo
+   tactil (celular o tablet). Se activa con pointer:coarse + hover:none,
+   que excluye desktop/laptop (incluso con ventanas angostas-altas, ya
+   que ahi el pointer sigue siendo fino). Sin boton para cerrar: bloqueo
+   real. */
 .rotate-overlay-icon {
     animation: rotate-overlay-hint 1.6s ease-in-out infinite;
 }
@@ -2386,7 +2289,7 @@ button, a, input {
     display: none;
 }
 
-@media (pointer: coarse) and (hover: none) and (min-width: 600px) and (min-height: 600px) and (orientation: portrait) {
+@media (pointer: coarse) and (hover: none) and (orientation: portrait) {
     #rotateOverlay {
         display: flex;
         position: fixed;

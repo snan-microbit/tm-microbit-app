@@ -7,7 +7,7 @@
   "display_override": ["fullscreen", "standalone"],
   "background_color": "#ffffff",
   "theme_color": "#009f95",
-  "orientation": "any",
+  "orientation": "landscape",
   "icons": [
     {
       "src": "assets/icon-192.png",
