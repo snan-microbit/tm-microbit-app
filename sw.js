@@ -12,6 +12,7 @@ const urlsToCache = [
   './index.html',
   './css/styles.css',
   './manifest.json',
+  './manifest-fullscreen.json',
   // App icons (referenced by index.html header and manifest)
   './assets/icon-192.png',
   './assets/icon-512.png',

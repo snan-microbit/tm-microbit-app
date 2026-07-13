@@ -14,7 +14,15 @@
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json" id="manifestLink">
+    <script>
+        // Tablets y celulares (input táctil primario, sin mouse/trackpad)
+        // instalan en modo pantalla completa; laptops/desktop siguen en
+        // "standalone" (con la barra de estado del SO visible).
+        if (matchMedia('(pointer: coarse) and (hover: none)').matches) {
+            document.getElementById('manifestLink').href = 'manifest-fullscreen.json';
+        }
+    </script>
 
     <link rel="stylesheet" href="css/styles.css?v=4.0">
 
