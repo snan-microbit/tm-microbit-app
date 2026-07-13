@@ -1591,6 +1591,7 @@ button, a, input {
 
 .btn-pred-connect {
     flex: 1;
+    min-height: 40px;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     font-size: 0.875rem;
@@ -1616,6 +1617,7 @@ button, a, input {
 
 .btn-pred-retrain {
     flex: 1;
+    min-height: 40px;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     font-size: 0.875rem;
