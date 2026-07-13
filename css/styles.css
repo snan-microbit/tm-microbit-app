@@ -1881,8 +1881,33 @@ button, a, input {
         display: contents;
     }
 
+    /* MakeCode ya tiene su propia barra superior; mostrar la nuestra
+       completa duplicaba el header. Se colapsa a 0 de alto (nombre de
+       proyecto oculto) y solo queda un boton circular flotante para
+       volver, superpuesto en la esquina de arriba — mismo patron que
+       los botones de flip/expandir del video. */
     .prediction-header {
         order: 0;
+        height: 0;
+        padding: 0;
+        overflow: visible;
+        background: transparent;
+        position: relative;
+        z-index: 20;
+    }
+
+    .prediction-header h2 {
+        display: none;
+    }
+
+    .prediction-header .btn-back {
+        position: absolute;
+        top: 0.5rem;
+        left: 0.5rem;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        border-radius: 50%;
     }
 
     .makecode-inline-panel {
