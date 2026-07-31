@@ -2,6 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'wasm-unsafe-eval';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        font-src 'self';
+        media-src 'self' blob:;
+        connect-src 'self' blob:;
+        worker-src 'self' blob:;
+        frame-src https://makecode.microbit.org;
+        manifest-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'none'
+    ">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Conecta modelos de Machine Learning a tu placa micro:bit">
     <meta name="theme-color" content="#009f95">
@@ -18,18 +33,15 @@
 
     <link rel="stylesheet" href="css/styles.css?v=4.0">
 
-    <!-- TF.js 4.22.0 (self-hosted) -->
+<!-- Debe cargar antes de TF.js. Ver comentario en el archivo. -->
+<script src="js/regenerator-guard.js"></script>
+
+<!-- TF.js 4.22.0 (self-hosted) -->
 <script src="vendor/tfjs/tfjs-4.22.0.min.js"></script>
 <!-- Speech Commands 0.5.4 (self-hosted) -->
 <script src="vendor/speech-commands/speech-commands-0.5.4.min.js"></script>
 <!-- MediaPipe Tasks Vision 0.10.14 (self-hosted) -->
-<script type="module">
-import { FilesetResolver, PoseLandmarker, DrawingUtils } from "./vendor/mediapipe/tasks-vision-0.10.14.mjs";
-window.FilesetResolver = FilesetResolver;
-window.PoseLandmarker = PoseLandmarker;
-window.DrawingUtils = DrawingUtils;
-console.log('✅ MediaPipe loaded (self-hosted)');
-</script>
+<script type="module" src="js/mediapipe-loader.js"></script>
 </head>
 <body>
     <!-- HOME SCREEN -->

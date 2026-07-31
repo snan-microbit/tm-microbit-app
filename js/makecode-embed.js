@@ -9,6 +9,10 @@
 
     const MAKECODE_URL = "https://makecode.microbit.org/v7.1.47";
 
+    // Origen del iframe, usado como targetOrigin en postMessage y para
+    // validar los mensajes entrantes. Debe coincidir con MAKECODE_URL.
+    const MAKECODE_ORIGIN = "https://makecode.microbit.org";
+
     const MAKECODE_LOAD_TIMEOUT_MS = 8000;
 
     // Map of iframeId → registered message handler
@@ -86,7 +90,10 @@
         hideFallbackOverlay(iframeId);
 
         const handler = (event) => {
+            // Defensa en profundidad: validar tanto la ventana emisora
+            // como el origen del mensaje.
             if (event.source !== iframe.contentWindow) return;
+            if (event.origin !== MAKECODE_ORIGIN) return;
 
             const data = event.data;
             if (!data || !data.type) return;
@@ -116,10 +123,13 @@
                     controllerId: 'tm-microbit-app',
                     editor: {}
                 };
-                iframe.contentWindow.postMessage(response, '*');
+                iframe.contentWindow.postMessage(response, MAKECODE_ORIGIN);
 
                 if (hideSimulator) {
-                    iframe.contentWindow.postMessage({ type: 'pxteditor', action: 'hidesimulator' }, '*');
+                    iframe.contentWindow.postMessage(
+                        { type: 'pxteditor', action: 'hidesimulator' },
+                        MAKECODE_ORIGIN
+                    );
                 }
             } else if (data.action === 'workspacesave') {
                 if (data.project && onSave) {
