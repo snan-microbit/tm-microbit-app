@@ -6,7 +6,7 @@
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'tm-microbit-v7.0';
+const CACHE_NAME = 'tm-microbit-v7.2';
 const urlsToCache = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const urlsToCache = [
   './assets/icon-512.png',
   // App scripts
   './js/app.js',
+  './js/mediapipe-loader.js',
   './js/project-store.js',
   './js/trainer-config.js',
   './js/webcam.js',
@@ -98,8 +99,21 @@ const urlsToCache = [
   './vendor/fonts/nunito-cyrillic.woff2',
   './vendor/fonts/nunito-vietnamese.woff2',
   './vendor/fonts/nunito-latin-ext.woff2',
-  './vendor/fonts/nunito-latin.woff2'
+  './vendor/fonts/nunito-latin.woff2',
+  './js/regenerator-guard.js'
 ];
+
+/**
+ * Determina si una respuesta debe persistirse en el cache.
+ * Evita cachear errores (404, 500) y respuestas opacas de forma permanente,
+ * lo que en la rama cache-first de /vendor/ dejaría el recurso roto para siempre.
+ */
+function isCacheable(response) {
+  return response
+    && response.ok
+    && response.status === 200
+    && response.type !== 'opaque';
+}
 
 // Install event - skip waiting to activate immediately
 self.addEventListener('install', (event) => {
@@ -145,10 +159,14 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
         return fetch(event.request).then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          // Solo persistir respuestas válidas. Cachear un 404 acá lo dejaría
+          // servido desde cache indefinidamente (estrategia cache-first).
+          if (isCacheable(response)) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
           return response;
         });
       })
@@ -160,16 +178,32 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Network success - update cache and return
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+        if (isCacheable(response)) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
         return response;
       })
-      .catch(() => {
-        // Network failed - try cache
-        return caches.match(event.request);
+      .catch(async () => {
+        // Sin red: intentar cache.
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+
+        // Navegación sin cache exacto → devolver el shell de la app.
+        if (event.request.mode === 'navigate') {
+          const shell = await caches.match('./index.html');
+          if (shell) return shell;
+        }
+
+        // Último recurso: respuesta explícita en vez de respondWith(undefined),
+        // que produce un error de red opaco e imposible de diagnosticar.
+        return new Response('Recurso no disponible sin conexión', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        });
       })
   );
 });
