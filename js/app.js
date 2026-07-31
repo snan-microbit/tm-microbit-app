@@ -11,6 +11,7 @@ import * as audioTrainer from './audio-trainer.js';
 import * as poseTrainer from './pose-trainer.js';
 import { loadModels, saveModels, addProject, deleteProject, updateProjectMakeCode, updateProjectModel } from './project-store.js';
 import { getConfig } from './trainer-config.js';
+import { escapeHtml } from './sanitize.js';
 
 let currentModel = null;
 
@@ -85,13 +86,13 @@ function renderModels() {
     const projectCards = models.map(model => `
         <div class="model-card">
             <div class="class-menu-wrapper model-card-menu">
-                <button class="btn-class-menu" data-id="${model.id}" title="Opciones">
+                <button class="btn-class-menu" data-id="${escapeHtml(model.id)}" title="Opciones">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="#666" stroke="none">
                         <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
                     </svg>
                 </button>
                 <div class="class-dropdown">
-                    <button class="class-dropdown-item danger" data-action="delete" data-id="${model.id}">
+                    <button class="class-dropdown-item danger" data-action="delete" data-id="${escapeHtml(model.id)}">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/>
                         </svg>
@@ -103,7 +104,7 @@ function renderModels() {
             ${model.classNames ? `<div class="model-card-classes">${model.classNames.map(c => escapeHtml(c)).join(' · ')}</div>` : ''}
             <div class="model-card-date">${formatDate(model.createdAt)}</div>
             <div class="model-card-actions">
-                <button class="btn-card btn-use" data-action="open" data-id="${model.id}">Abrir</button>
+                <button class="btn-card btn-use" data-action="open" data-id="${escapeHtml(model.id)}">Abrir</button>
             </div>
         </div>
     `).join('');
@@ -814,12 +815,17 @@ function updateClassUI(classIndex) {
     const gallery = card.querySelector('.sample-gallery');
     if (gallery) {
         const samples = t.getSamples(classIndex);
+        // Thumbs come from IndexedDB (user input): assign src as a property,
+        // never interpolate them into the HTML template.
         gallery.innerHTML = samples.map(s => `
             <div class="sample-thumb">
-                <img src="${s.thumb}">
+                <img>
                 <button class="btn-delete-sample" data-ci="${classIndex}" data-si="${s.index}">×</button>
             </div>
         `).join('');
+        gallery.querySelectorAll('.sample-thumb img').forEach((img, i) => {
+            img.src = samples[i].thumb;
+        });
         gallery.querySelectorAll('.btn-delete-sample').forEach(btn => {
             btn.addEventListener('click', () => {
                 t.deleteSample(+btn.dataset.ci, +btn.dataset.si);
@@ -916,7 +922,7 @@ function renderTrainingClasses() {
                 <div class="sample-gallery">
                     ${samples.map(s => `
                         <div class="sample-thumb">
-                            <img src="${s.thumb}">
+                            <img>
                             <button class="btn-delete-sample" data-ci="${i}" data-si="${s.index}">×</button>
                         </div>
                     `).join('')}
@@ -924,6 +930,15 @@ function renderTrainingClasses() {
             </div>
         </div>`;
     }).join('');
+
+    // Thumbs come from IndexedDB (user input): assign src as a property,
+    // never interpolate them into the HTML template.
+    container.querySelectorAll('.sample-gallery').forEach((gallery, ci) => {
+        const samples = t.getSamples(ci);
+        gallery.querySelectorAll('.sample-thumb img').forEach((img, si) => {
+            img.src = samples[si].thumb;
+        });
+    });
 
     wireTrainingClassEvents(container, config, t);
 
@@ -1389,12 +1404,6 @@ function autoSizeInput(input) {
     measure.textContent = input.value || input.placeholder || ' ';
     input.style.width = (measure.offsetWidth + 4) + 'px';
     document.body.removeChild(measure);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function formatDate(isoString) {

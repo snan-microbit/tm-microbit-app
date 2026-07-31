@@ -19,12 +19,23 @@ Exporta:
 
 Funciones internas clave (no exportadas): `renderModels()`, `openTrainingScreen(project)`, `openPredictionScreen(model)`, `renderTrainingClasses()`, `renderTrainingPredictions(predictions)`, `startPredictionLoop()`, `startPosePredictionLoop()`, `openPreviewModal()`, `enterCaptureMode()`.
 
+Todo texto de usuario interpolado en templates HTML (nombres de proyecto/clase, ids en `data-*`) pasa por `escapeHtml()` de `sanitize.js`, que escapa también comillas (seguro en contexto de atributo). Los thumbnails de las galerías (`renderTrainingClasses()`, `updateClassUI()`) se asignan por propiedad (`img.src`), nunca interpolados en el template.
+
 ### `js/protocol.js`
-Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Es el único módulo cubierto por tests unitarios y no debe adquirir dependencias de DOM/hardware.
+Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Cubierto por tests unitarios (junto con `sanitize.js`); no debe adquirir dependencias de DOM/hardware.
 
 Exporta:
 - `UART_MAX_BYTES` — constante `20`, límite de bytes por mensaje BLE.
 - `formatUartMessage(className, confidence)` — devuelve `Uint8Array` con `"className#confidence\n"` codificado en UTF-8, garantizado ≤ 20 bytes. Redondea la confianza con `Math.round` (no la limita a 0-100). Si el mensaje excede el límite, trunca el nombre de clase a nivel de bytes retrocediendo sobre bytes de continuación UTF-8 para no partir caracteres multibyte.
+
+### `js/sanitize.js`
+Lógica pura de sanitización (mismo patrón que `protocol.js`: sin APIs de navegador, importable desde `node:test`, cubierta por tests). Centraliza el escape de HTML y la validación de forma de las muestras rehidratadas desde IndexedDB, que el proyecto trata como entrada de usuario.
+
+Exporta:
+- `escapeHtml(value)` — escapa `& < > " '`; a diferencia del round-trip `textContent`/`innerHTML`, es seguro también en contexto de atributo entre comillas (`value="${...}"`). `null`/`undefined` devuelven `''`; otros valores se convierten con `String()`.
+- `isDataImageUrl(value)` — `true` solo para strings `data:image/jpeg;base64,...` o `data:image/png;base64,...`, los únicos formatos que los trainers producen con `toDataURL()`.
+- `isValidImageSample(sample)` — valida `{ci, img224, thumb}` contra la forma que escribe `saveSamples()` de `image-trainer.js` (`ci` entero ≥ 0, data URLs de imagen).
+- `isValidPoseSample(sample, featureSize)` — valida `{ci, features, thumb}` contra la forma que escribe `saveSamples()` de `pose-trainer.js` (`features`: array de exactamente `featureSize` números finitos).
 
 ### `js/bluetooth.js`
 Conexión Web Bluetooth con el micro:bit (servicio UART Nordic) y envío de predicciones. Importa `formatUartMessage` desde `protocol.js`. Mantiene un keep-alive que escribe `"\n"` cada 2 minutos para que la conexión no caduque.
@@ -41,7 +52,7 @@ Transfer learning de imagen: MobileNet v1 (alpha 0.25, entrada 224×224, self-ho
 
 Exporta: `initTrainer()`, `addClass(name)`, `removeClass(index)`, `renameClass(index, newName)`, `clearSamples(index)`, `getClasses()` (→ `[{name, count}]`), `getClassNames()`, `getTotalClasses()`, `getSamples(classIndex)` (→ `[{index, thumb}]`), `deleteSample(classIndex, sampleIndex)`, `captureOne(classIndex, webcamCanvas)`, `startCapture(classIndex, webcamCanvas)` (~5 fps), `stopCapture()`, `train(onProgress)`, `predict(canvas)` (→ `[{className, probability}]`), `saveModel(projectId)`, `loadSavedModel(localModelInfo)`, `deleteModel(storageKey)`, `saveSamples(projectId)`, `loadSamples(projectId)`, `deleteSamplesDB(projectId)`, `isTrained()`, `dispose()`.
 
-Detalle no obvio: `train()` entrena una cabeza nueva **antes** de hacer dispose de la anterior — un `predict()` en vuelo sobre la cabeza vieja con lectura WebGL pendiente se corrompería si se la libera primero. Tras entrenar, libera las muestras en memoria (quedan las persistidas en IndexedDB).
+Detalles no obvios: `train()` entrena una cabeza nueva **antes** de hacer dispose de la anterior — un `predict()` en vuelo sobre la cabeza vieja con lectura WebGL pendiente se corrompería si se la libera primero. Tras entrenar, libera las muestras en memoria (quedan las persistidas en IndexedDB). `loadSamples()` descarta registros de IndexedDB con forma inválida (`isValidImageSample()` de `sanitize.js`) y también los que fallan al decodificar como imagen (handler `onerror` — sin él, la promise de carga nunca resolvería y la pantalla quedaría colgada).
 
 ### `js/audio-trainer.js`
 Transfer learning de audio sobre la librería `speech-commands` (global `speechCommands`, modelo base `BROWSER_FFT`). Genera thumbnails de espectrograma para la galería y dibuja un visualizador de frecuencia en canvas. La primera clase es siempre `Ruido de fondo` (requisito de la librería).
@@ -55,7 +66,7 @@ Clasificador de pose: MediaPipe PoseLandmarker (lite, GPU, `runningMode: VIDEO`)
 
 Exporta: mismo contrato que `image-trainer.js` (con `captureOne(classIndex, webcamCanvas, imageSource, flip)` y `startCapture(...)` con firma extendida, y `captureOne` devuelve `false` si no detectó pose) más `extractKeypoints(imageSource, timestamp)`, `getLastLandmarks()` y `drawSkeleton(ctx, landmarks, canvasWidth, canvasHeight, flip)`.
 
-Detalle no obvio: `dispose()` **no** libera `poseLandmarker` (recrearlo cuesta 2-3 s); solo libera la cabeza y las muestras.
+Detalles no obvios: `dispose()` **no** libera `poseLandmarker` (recrearlo cuesta 2-3 s); solo libera la cabeza y las muestras. `loadSamples()` descarta registros de IndexedDB con forma inválida (`isValidPoseSample()` de `sanitize.js`, largo exacto de features incluido).
 
 ### `js/webcam.js`
 Exporta la clase `Webcam` — wrapper liviano de `getUserMedia`. El canvas es siempre cuadrado, center-crop de la resolución nativa: lo que se ve es exactamente lo que recibe el modelo. Espejado horizontal opcional (cámara frontal).
@@ -96,8 +107,12 @@ Script clásico (no módulo) que debe cargar **antes** de TF.js: declara `window
 ### `js/tm-import/` (archivado)
 `model-loader.js` y `predictions.js` implementaban la importación de modelos de Teachable Machine por URL; la feature se eliminó y los archivos se conservan fuera del flujo de carga (nada los importa; no están en el precache del SW). Su README documenta los pasos para re-habilitarlos. Nota: tal como está archivado, `predictions.js` importa `./bluetooth.js`, ruta que solo vuelve a resolver si los archivos se mueven de vuelta a `js/` como indica ese README.
 
-### Tests (`tests/protocol.test.js`)
-Suite del runner nativo de Node (`node:test`, sin dependencias npm) que cubre `formatUartMessage`: formato, redondeo, ausencia de clamp, límite de 20 bytes, truncado con sufijo preservado, fronteras UTF-8 (ñ, emojis) y casos borde; más un test de humo que verifica que `bluetooth.js` importa limpio en Node y conserva su API pública. Se corre con `npm test` (script: `node --test tests/`). El CI (GitHub Actions) los ejecuta en Node 20 y además verifica los checksums SHA-256 de `vendor/`.
+### Tests (`tests/`)
+Suites del runner nativo de Node (`node:test`, sin dependencias npm), corridas con `npm test` (script: `node --test tests/`):
+- `protocol.test.js` — cubre `formatUartMessage`: formato, redondeo, ausencia de clamp, límite de 20 bytes, truncado con sufijo preservado, fronteras UTF-8 (ñ, emojis) y casos borde; más un test de humo que verifica que `bluetooth.js` importa limpio en Node y conserva su API pública.
+- `sanitize.test.js` — cubre `escapeHtml` (comillas dobles y simples, texto, no doble-escape, payload de escape de atributo de la auditoría, `null`/`undefined`/números) y los validadores de muestras (`isDataImageUrl`, `isValidImageSample`, `isValidPoseSample`).
+
+El CI (GitHub Actions) los ejecuta en Node 20 y además verifica la integridad de `vendor/`: checksums SHA-256 de **todos** los archivos (`vendor/CHECKSUMS.txt`, MobileNet incluido) y un paso de cobertura que falla si aparece un archivo en `vendor/` sin checksum o una entrada huérfana.
 
 ## 3. Flujos principales
 
@@ -186,7 +201,7 @@ Modelos entrenados vía `tf.io` (`indexeddb://<storageKey>`, en la base interna 
 | `tm-audio-local-<projectId>` | Modelo de audio |
 | `tm-pose-local-<projectId>` | Cabeza de pose |
 
-Además, el Service Worker mantiene el Cache Storage `tm-microbit-v7.3` con el app shell y todo `vendor/`.
+Además, el Service Worker mantiene el Cache Storage `tm-microbit-v7.4` con el app shell y todo `vendor/`.
 
 ## 5. Protocolo BLE
 
@@ -211,25 +226,27 @@ Ejemplos concretos:
 
 - **Cero dependencias npm en runtime.** `package.json` existe solo para el script de test (`node --test tests/`, runner nativo de Node ≥18) y está marcado `private`. No introducir dependencias.
 - **Vanilla JS con módulos ES, sin frameworks ni build step.** Lo que está en el repo es lo que se sirve.
-- **Librerías self-hosted y pineadas** en `vendor/` (TF.js 4.22.0, Speech Commands 0.5.4, MediaPipe Tasks Vision 0.10.14, MobileNet v1 0.25, fuentes Nunito). Sin CDNs en runtime. El CI verifica `vendor/CHECKSUMS.txt` (SHA-256).
+- **Librerías self-hosted y pineadas** en `vendor/` (TF.js 4.22.0, Speech Commands 0.5.4, MediaPipe Tasks Vision 0.10.14, MobileNet v1 0.25, fuentes Nunito). Sin CDNs en runtime. El CI verifica `vendor/CHECKSUMS.txt` (SHA-256, cubre **todos** los archivos de `vendor/`, MobileNet incluido) y falla si hay archivos de `vendor/` sin checksum. Los hashes se calculan sobre los blobs de git (checkout LF de CI); al agregar un archivo a `vendor/`, agregar su hash con `git cat-file blob HEAD:<ruta> | sha256sum`.
 - **CSP estricta** en `index.html`: `script-src 'self' 'wasm-unsafe-eval'` (sin `unsafe-eval` — de ahí `regenerator-guard.js` y `mediapipe-loader.js`), `frame-src` limitado a `https://makecode.microbit.org`, `object-src 'none'`.
 - **MakeCode pineado a v7.1.47** (`MAKECODE_URL`) por el bug upstream microsoft/pxt-microbit#6629 (panic 070 con `music.*` + BLE en v8). No subir de versión sin verificar el fix. La extensión se pinea por commit en `generateProject()`.
 - **Offline-first:** Service Worker con cache-first para `vendor/` (inmutable, ~28 MB) y network-first para el app shell; no se cachean respuestas de error; fallback a `index.html` en navegaciones y 503 explícito como último recurso. Al tocar archivos precacheados hay que subir `CACHE_NAME` (convención `tm-microbit-vX.Y`).
 - **Mensajes postMessage validados** por ventana emisora y origen exacto (`MAKECODE_ORIGIN`).
 - **Mínimos de entrenamiento:** 2 clases y 8 muestras por clase, validado en la UI (`updateTrainButton()`). Los `train()` de imagen y pose lo re-validan clase por clase; el de audio solo exige que haya ≥2 clases con 8+ muestras (una clase adicional con menos muestras no lo hace fallar — ahí la barrera es solo la UI).
 - **Webcam cuadrada center-crop:** el usuario ve exactamente el encuadre que recibe el modelo.
-- **La lógica testeable se extrae a módulos puros** (patrón `protocol.js`): sin APIs de navegador a nivel de módulo, importables desde `node:test`. Los tests documentan lo que el código hace.
+- **La lógica testeable se extrae a módulos puros** (patrón `protocol.js`; también `sanitize.js`): sin APIs de navegador a nivel de módulo, importables desde `node:test`. Los tests documentan lo que el código hace.
+- **IndexedDB y localStorage se tratan como entrada de usuario:** las muestras rehidratadas por `loadSamples()` se validan con `sanitize.js`; los thumbnails se asignan por propiedad (`img.src`), nunca interpolados en templates HTML. `escapeHtml()` escapa comillas y es la única vía para interpolar texto de usuario en templates (texto o atributo).
 - **localStorage defensivo:** datos corruptos se preservan en clave de backup; cuota excedida se reporta con `StorageQuotaError` y mensaje accionable.
 
 ## 7. Estado actual
 
 **Última actualización:** 2026-07-31
 
-**Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suite de tests del protocolo UART con CI (tests + checksums de vendor).
+**Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART y sanitización) con CI (tests + checksums de todo vendor/ con verificación de cobertura).
 
 **Deuda y pendientes conocidos:**
 
-- Cobertura de tests limitada al protocolo UART. Fases futuras previstas: serialización de proyectos en localStorage, operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
+- Hallazgos menores (baja/informativa) de la auditoría de seguridad del 2026-07-31 pendientes como backlog en `docs/PENDIENTES-SEGURIDAD.md` (7 ítems); los hallazgos altos/medios de esa auditoría ya fueron corregidos.
+- Cobertura de tests limitada al protocolo UART y a `sanitize.js`. Fases futuras previstas: serialización de proyectos en localStorage, operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
 - `getClassColor()` en `app.js` ignora el índice y devuelve siempre el primer color: la paleta `CLASS_COLORS` de 6 colores está definida pero todas las clases se pintan iguales (decisión o regresión — a confirmar antes de "arreglarlo").
 - En `audio-trainer.js`, `clearSamples()` borra las muestras de **todas** las clases (limitación de `clearExamples()` de speech-commands); la UI no lo advierte.
 - `saveModel()` de audio puede terminar sin persistir pesos (solo deja warning en consola) si ni `transfer.save()` ni el modelo interno están disponibles; el proyecto queda dependiente de re-entrenar desde muestras.

@@ -37,3 +37,16 @@ jobs:
 
       - name: Verificar checksums SHA-256
         run: sha256sum -c vendor/CHECKSUMS.txt
+
+      - name: Verificar cobertura de CHECKSUMS.txt
+        # sha256sum -c solo verifica lo listado: un archivo nuevo en vendor/
+        # sin checksum pasaría inadvertido. Este paso falla si vendor/ y
+        # CHECKSUMS.txt no coinciden exactamente (archivo sin checksum o
+        # entrada huérfana).
+        run: |
+          git ls-files vendor/ | grep -vx 'vendor/CHECKSUMS.txt' | sort > /tmp/vendor-real.txt
+          sed -E 's/^[0-9a-f]{64}[[:space:]]+\*?//' vendor/CHECKSUMS.txt | sort > /tmp/vendor-listado.txt
+          if ! diff -u /tmp/vendor-listado.txt /tmp/vendor-real.txt; then
+            echo '::error::vendor/ y CHECKSUMS.txt no coinciden: hay archivos sin checksum o entradas huérfanas'
+            exit 1
+          fi

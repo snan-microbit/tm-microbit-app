@@ -4,6 +4,8 @@
  * Extracts 33 body keypoints as features, trains a lightweight classifier.
  */
 
+import { isValidPoseSample } from './sanitize.js';
+
 // MediaPipe pose detector
 let poseLandmarker = null;
 
@@ -451,7 +453,9 @@ async function loadSamples(projectId) {
     });
 
     for (const s of stored) {
-        if (!classes[s.ci]) continue;
+        // IndexedDB is user-modifiable: skip records whose shape or data
+        // URLs don't match what saveSamples() writes.
+        if (!isValidPoseSample(s, featureSize) || !classes[s.ci]) continue;
         classes[s.ci].samples.push({
             features: new Float32Array(s.features),
             thumb: s.thumb

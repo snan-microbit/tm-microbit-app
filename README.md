@@ -133,15 +133,18 @@ tm-microbit-app/
 ├── css/
 │   └── styles.css          # Estilos responsivos
 ├── docs/
-│   └── ARQUITECTURA.md     # Fuente de verdad del estado del código
+│   ├── ARQUITECTURA.md     # Fuente de verdad del estado del código
+│   └── PENDIENTES-SEGURIDAD.md  # Backlog de hallazgos menores de auditoría
 ├── tests/
-│   └── protocol.test.js    # Tests del protocolo UART (node --test)
+│   ├── protocol.test.js    # Tests del protocolo UART (node --test)
+│   └── sanitize.test.js    # Tests de escape HTML y validación de muestras
 ├── vendor/                 # Librerías self-hosted pineadas (TF.js, MediaPipe, MobileNet, fuentes)
 ├── .github/
 │   └── workflows/ci.yml    # CI: tests + checksums SHA-256 de vendor/
 └── js/
     ├── app.js              # Lógica principal, UI y coordinación
     ├── protocol.js         # Lógica pura del protocolo UART (formatUartMessage)
+    ├── sanitize.js         # Escape HTML y validación de muestras de IndexedDB
     ├── image-trainer.js    # Transfer learning sobre MobileNet
     ├── audio-trainer.js    # Transfer learning sobre Speech Commands
     ├── pose-trainer.js     # MediaPipe PoseLandmarker + clasificador TF.js

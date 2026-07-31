@@ -4,6 +4,8 @@
  * Handles capture, training, prediction, and IndexedDB persistence.
  */
 
+import { isValidImageSample } from './sanitize.js';
+
 // Feature extractor (truncated MobileNet, immutable)
 let featureExtractor = null;
 let featureSize = 0; // 12544 for MobileNet v1 alpha=0.25
@@ -409,15 +411,21 @@ async function loadSamples(projectId) {
     loadCanvas.height = 224;
 
     for (const s of stored) {
-        if (!classes[s.ci]) continue;
-        await new Promise(res => {
+        // IndexedDB is user-modifiable: skip records whose shape or data
+        // URLs don't match what saveSamples() writes.
+        if (!isValidImageSample(s) || !classes[s.ci]) continue;
+        // A prefix-valid data URL can still fail to decode; without onerror
+        // the promise would never resolve and loadSamples() would hang.
+        const decoded = await new Promise(res => {
             const img = new Image();
             img.onload = () => {
                 loadCanvas.getContext("2d").drawImage(img, 0, 0, 224, 224);
-                res();
+                res(true);
             };
+            img.onerror = () => res(false);
             img.src = s.img224;
         });
+        if (!decoded) continue;
         const tensor = tf.tidy(() =>
             featureExtractor.predict(
                 tf.browser.fromPixels(loadCanvas).toFloat().div(127.5).sub(1.0).expandDims(0)
