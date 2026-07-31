@@ -7,11 +7,70 @@ const MODELS_KEY = 'tm_microbit_models';
 
 export function loadModels() {
     const stored = localStorage.getItem(MODELS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+
+    let parsed;
+    try {
+        parsed = JSON.parse(stored);
+    } catch (e) {
+        console.error('[project-store] localStorage corrupto, no se pudo parsear:', e);
+        preserveCorruptData(stored);
+        return [];
+    }
+
+    // JSON.parse('"foo"') o JSON.parse('123') no lanzan error pero no son arrays.
+    if (!Array.isArray(parsed)) {
+        console.error('[project-store] Formato inesperado, se esperaba un array.');
+        preserveCorruptData(stored);
+        return [];
+    }
+
+    return parsed;
+}
+
+/**
+ * Guarda el valor corrupto bajo una clave aparte antes de descartarlo,
+ * para que los datos sean recuperables manualmente si hiciera falta.
+ * Nunca lanza: si ni siquiera esto se puede escribir, se ignora.
+ */
+function preserveCorruptData(raw) {
+    try {
+        const backupKey = `${MODELS_KEY}_corrupt_${Date.now()}`;
+        localStorage.setItem(backupKey, raw);
+        console.warn(`[project-store] Datos corruptos preservados en "${backupKey}"`);
+    } catch (e) {
+        console.warn('[project-store] No se pudo preservar el backup:', e);
+    }
+}
+
+/**
+ * Error identificable para que la UI pueda mostrar un mensaje específico
+ * en lugar de un fallo genérico.
+ */
+export class StorageQuotaError extends Error {
+    constructor() {
+        super('No hay espacio suficiente para guardar. Eliminá algún proyecto para liberar espacio.');
+        this.name = 'StorageQuotaError';
+    }
 }
 
 export function saveModels(models) {
-    localStorage.setItem(MODELS_KEY, JSON.stringify(models));
+    try {
+        localStorage.setItem(MODELS_KEY, JSON.stringify(models));
+    } catch (e) {
+        // El nombre y el código varían entre navegadores.
+        const isQuota =
+            e.name === 'QuotaExceededError' ||
+            e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+            e.code === 22 ||
+            e.code === 1014;
+
+        if (isQuota) {
+            console.error('[project-store] Cuota de localStorage excedida:', e);
+            throw new StorageQuotaError();
+        }
+        throw e;
+    }
 }
 
 export function addProject(name, projectType) {

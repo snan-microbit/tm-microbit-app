@@ -230,8 +230,12 @@ async function openPredictionScreen(model) {
         classNamesForMakeCode,
         model.makecodeProject || null,
         (proj) => {
-            updateProjectMakeCode(model.id, proj);
-            if (currentModel) currentModel.makecodeProject = proj;
+            try {
+                updateProjectMakeCode(model.id, proj);
+                if (currentModel) currentModel.makecodeProject = proj;
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
         },
         model.name,
         'makecodeInlineFrame',
