@@ -1,13 +1,13 @@
 # ML-micro:bit
 
-PWA educativa de Plan Ceibal: entrena modelos de ML en el navegador (imagen, audio, pose) y envía predicciones a BBC micro:bit por Bluetooth UART. Usuarios: docentes y estudiantes.
+PWA educativa de Ceibal: entrena modelos de ML en el navegador (imagen, audio, pose) y envía predicciones a BBC micro:bit por Bluetooth UART. Usuarios: docentes y estudiantes.
 
 ## Restricciones innegociables
 
 - Vanilla JavaScript (módulos ES6). Sin frameworks, sin TypeScript, sin build step.
-- CERO dependencias npm en runtime. Todo por CDN con versiones pinneadas (TF.js 4.22.0, MediaPipe Tasks Vision 0.10.14, Speech Commands 0.5.4). No cambiar versiones.
+- CERO dependencias npm en runtime. Librerías self-hosteadas en `vendor/` con versiones pinneadas (TF.js 4.22.0, MediaPipe Tasks Vision 0.10.14, Speech Commands 0.5.4) y checksums verificados en CI. No usar CDNs (la CSP `script-src 'self'` los bloquea). No cambiar versiones.
 - Offline-capable tras la primera carga (Service Worker con precache; al tocar archivos precacheados, agregarlos a la lista y subir la versión del cache).
-- Español en strings de UI; inglés en código, comentarios y nombres.
+- Español en strings de UI y en nombres/comentarios de steps de CI; inglés en código, comentarios y nombres.
 - Mobile-friendly: responsive, touch targets ≥ 44×44 px, UX simple para contexto educativo.
 - Única dependencia de desarrollo permitida: ninguna — los tests usan `node:test` nativo (`npm test`).
 
