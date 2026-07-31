@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatUartMessage } from '../js/bluetooth.js';
+import { formatUartMessage, UART_MAX_BYTES } from '../js/protocol.js';
 
 // Helper: decode Uint8Array to string for readable assertions
 const decode = (bytes) => new TextDecoder().decode(bytes);
@@ -35,17 +35,25 @@ describe('formatUartMessage', () => {
         assert.equal(decode(result), 'A#1\n');
     });
 
+    it('does NOT clamp out-of-range confidence (documents current behavior)', () => {
+        // The protocol layer trusts its caller: confidence outside 0-100
+        // passes through as-is. If clamping is ever added, this test must
+        // change deliberately, not by accident.
+        assert.equal(decode(formatUartMessage('Gato', 150)), 'Gato#150\n');
+        assert.equal(decode(formatUartMessage('Gato', -5)), 'Gato#-5\n');
+    });
+
     // — Size limit ————————————————————————————————————————
 
-    it('never exceeds 20 bytes', () => {
+    it('never exceeds UART_MAX_BYTES (20) bytes', () => {
         const result = formatUartMessage('NombreMuyLargoDeClaseQueNoDebePasar', 100);
-        assert.ok(result.length <= 20, `Got ${result.length} bytes, expected ≤ 20`);
+        assert.ok(result.length <= UART_MAX_BYTES, `Got ${result.length} bytes, expected ≤ ${UART_MAX_BYTES}`);
     });
 
     it('exactly 20 bytes passes through without truncation', () => {
         // "AbcdeAbcdeAbcde#100\n" = 15 + 5 = 20 bytes
         const result = formatUartMessage('AbcdeAbcdeAbcde', 100);
-        assert.equal(result.length, 20);
+        assert.equal(result.length, UART_MAX_BYTES);
         assert.equal(decode(result), 'AbcdeAbcdeAbcde#100\n');
     });
 
@@ -73,8 +81,10 @@ describe('formatUartMessage', () => {
     it('does not cut a multi-byte character in half when truncating', () => {
         // "ñañañañañañañaña" forces truncation near a multi-byte boundary.
         // suffix "#0\n" = 3 bytes → name ≤ 17 bytes.
-        // Each ñ=2 bytes, each a=1 byte. At 17 bytes the last byte is a
-        // continuation byte of ñ, so truncation must step back to 15 bytes.
+        // Each ñ=2 bytes, each a=1 byte. The 17-byte cut lands right after a
+        // complete ñ (byte 17 is an 'a'), so no step-back is needed and the
+        // result is valid UTF-8 as-is. The step-back branch is exercised by
+        // the emoji truncation test below (its byte 17 IS a continuation byte).
         const result = formatUartMessage('ñañañañañañañaña', 0);
         assert.ok(result.length <= 20, `Got ${result.length} bytes`);
 
@@ -117,5 +127,17 @@ describe('formatUartMessage', () => {
     it('returns Uint8Array', () => {
         const result = formatUartMessage('Test', 50);
         assert.ok(result instanceof Uint8Array);
+    });
+});
+
+describe('bluetooth.js integration', () => {
+
+    it('imports cleanly in Node and keeps its public API (smoke test)', async () => {
+        // Verifies the ./protocol.js import path resolves and that the
+        // refactor did not break bluetooth.js's exported surface.
+        const mod = await import('../js/bluetooth.js');
+        for (const fn of ['connectMicrobit', 'disconnectMicrobit', 'sendToMicrobit', 'isConnected', 'setDisconnectCallback']) {
+            assert.equal(typeof mod[fn], 'function', `bluetooth.js should export ${fn}()`);
+        }
     });
 });

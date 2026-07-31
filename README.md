@@ -126,13 +126,22 @@ tm-microbit-app/
 ├── index.html              # UI principal (todas las pantallas + modales)
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service Worker (cache-first en vendor/, network-first en el resto)
+├── package.json            # Solo script de test (sin dependencias runtime)
 ├── assets/
 │   ├── icon-192.png        # Iconos PWA
 │   └── icon-512.png
 ├── css/
 │   └── styles.css          # Estilos responsivos
+├── docs/
+│   └── ARQUITECTURA.md     # Fuente de verdad del estado del código
+├── tests/
+│   └── protocol.test.js    # Tests del protocolo UART (node --test)
+├── vendor/                 # Librerías self-hosted pineadas (TF.js, MediaPipe, MobileNet, fuentes)
+├── .github/
+│   └── workflows/ci.yml    # CI: tests + checksums SHA-256 de vendor/
 └── js/
     ├── app.js              # Lógica principal, UI y coordinación
+    ├── protocol.js         # Lógica pura del protocolo UART (formatUartMessage)
     ├── image-trainer.js    # Transfer learning sobre MobileNet
     ├── audio-trainer.js    # Transfer learning sobre Speech Commands
     ├── pose-trainer.js     # MediaPipe PoseLandmarker + clasificador TF.js
@@ -141,6 +150,8 @@ tm-microbit-app/
     ├── makecode-embed.js   # Iframe MakeCode + comunicación postMessage
     ├── project-store.js    # CRUD de proyectos en localStorage
     ├── trainer-config.js   # Configuración declarativa por tipo de trainer
+    ├── mediapipe-loader.js # Publica MediaPipe en window (para mantener la CSP)
+    ├── regenerator-guard.js # Workaround CSP de regenerator-runtime (carga antes de TF.js)
     └── tm-import/          # (Archivado) importador de modelos TM por URL
         ├── model-loader.js
         ├── predictions.js
