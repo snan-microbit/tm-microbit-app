@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Configuración local de desarrollador
+.claude/
+.vscode/
+.idea/
+*.code-workspace
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs y temporales
+*.log
+npm-debug.log*
+*.tmp
+*.swp
+
+# Variables de entorno
+.env
+.env.*

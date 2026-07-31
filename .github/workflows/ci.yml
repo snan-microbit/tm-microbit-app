@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Tests unitarios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (sin vendor/)
+        uses: actions/checkout@v4
+        with:
+          # vendor/ pesa ~28 MB y los tests no lo necesitan.
+          sparse-checkout: |
+            js/
+            tests/
+            package.json
+          sparse-checkout-cone-mode: false
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ejecutar tests
+        run: npm test
+
+  checksums:
+    name: Integridad de vendor/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout completo
+        uses: actions/checkout@v4
+
+      - name: Verificar checksums SHA-256
+        run: sha256sum -c vendor/CHECKSUMS.txt

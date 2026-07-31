@@ -1,3 +1,19 @@
 {
-  "type": "module"
+  "name": "ml-microbit",
+  "version": "1.0.0",
+  "description": "PWA para entrenar modelos de Machine Learning en el navegador y conectarlos al micro:bit vía Bluetooth. Desarrollada para Plan Ceibal.",
+  "type": "module",
+  "private": true,
+  "author": "Plan Ceibal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snan-microbit/tm-microbit-app.git"
+  },
+  "homepage": "https://snan-microbit.github.io/tm-microbit-app/",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
 }
