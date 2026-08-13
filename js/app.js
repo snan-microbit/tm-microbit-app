@@ -12,6 +12,14 @@ import * as poseTrainer from './pose-trainer.js';
 import { loadModels, saveModels, addProject, deleteProject, updateProjectMakeCode, updateProjectModel } from './project-store.js';
 import { getConfig } from './trainer-config.js';
 import { escapeHtml } from './sanitize.js';
+import {
+    MAX_CLASS_NAME_BYTES,
+    byteLength,
+    stripUnsafeChars,
+    truncateToBytes,
+    normalizeClassName,
+    isDuplicateClassName
+} from './class-name.js';
 
 let currentModel = null;
 
@@ -894,7 +902,9 @@ function renderTrainingClasses() {
                 <div class="class-card-header-left">
                     <div class="class-dot" style="background:${color.dot};"></div>
                     <input class="class-name-input" value="${escapeHtml(c.name)}" data-index="${i}"
+                        maxlength="${MAX_CLASS_NAME_BYTES}"
                         style="color:${color.headerText};" ${isFixed ? 'disabled' : ''}>
+                    ${isFixed ? '' : '<span class="class-name-counter" hidden></span>'}
                     ${isFixed ? '' : `<svg class="pencil-edit-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"
                         stroke="${color.headerText}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
                         style="opacity: 0.45; flex-shrink: 0; cursor: pointer;">
@@ -956,23 +966,63 @@ function wireTrainingClassEvents(container, config, t) {
 
     // Rename
     container.querySelectorAll('.class-name-input:not([disabled])').forEach(input => {
+        const idx = () => +input.dataset.index;
+        // Programmatic writes don't fire 'input', so the width and the counter
+        // have to be refreshed by hand: field-sizing loses to the inline width
+        // autoSizeInput() left behind for the text the user had typed.
+        const setValue = (value) => {
+            input.value = value;
+            autoSizeInput(input);
+            updateNameCounter(input);
+        };
+        const revert = () => setValue(t.getClasses()[idx()].name);
+
+        // Live filter: drop unsafe characters and cap the byte length as the
+        // user types, preserving the caret position.
+        input.addEventListener('input', () => {
+            const filtered = stripUnsafeChars(input.value).replace(/\s+/g, ' ');
+            const capped = truncateToBytes(filtered, MAX_CLASS_NAME_BYTES);
+            if (capped !== input.value) {
+                const caret = input.selectionStart;
+                const removed = input.value.length - capped.length;
+                input.value = capped;
+                const pos = Math.max(0, Math.min(capped.length, caret - removed));
+                input.setSelectionRange(pos, pos);
+            }
+            updateNameCounter(input);
+        });
+
         input.addEventListener('change', () => {
-            const newName = input.value.trim();
+            const newName = normalizeClassName(input.value);
             if (!newName) {
-                input.value = t.getClasses()[+input.dataset.index].name;
+                revert();
+                return;
+            }
+            const names = t.getClassNames();
+            if (newName === names[idx()]) {
+                setValue(newName);
+                return;
+            }
+            if (isDuplicateClassName(newName, names, idx())) {
+                showToast('Ya existe una clase con ese nombre', 'error');
+                revert();
                 return;
             }
             if (config.renameRequiresTryCatch) {
                 try {
-                    t.renameClass(+input.dataset.index, newName);
+                    t.renameClass(idx(), newName);
                 } catch (e) {
                     showToast(e.message, 'error');
-                    input.value = t.getClasses()[+input.dataset.index].name;
+                    revert();
+                    return;
                 }
             } else {
-                t.renameClass(+input.dataset.index, input.value.trim());
+                t.renameClass(idx(), newName);
             }
+            setValue(newName);
         });
+
+        updateNameCounter(input);
     });
 
     // Auto-size name inputs to their content
@@ -1406,6 +1456,20 @@ function autoSizeInput(input) {
     document.body.removeChild(measure);
 }
 
+/**
+ * Updates the byte counter next to a class-name input. Hidden until the name
+ * approaches the limit, so the normal case shows no clutter.
+ */
+function updateNameCounter(input) {
+    const card = input.closest('.training-class-card');
+    const counter = card ? card.querySelector('.class-name-counter') : null;
+    if (!counter) return;
+    const used = byteLength(input.value);
+    counter.textContent = `${used}/${MAX_CLASS_NAME_BYTES}`;
+    counter.hidden = used < MAX_CLASS_NAME_BYTES - 3;
+    counter.classList.toggle('at-limit', used >= MAX_CLASS_NAME_BYTES);
+}
+
 function formatDate(isoString) {
     const date = new Date(isoString);
     const now = new Date();
@@ -1555,7 +1619,15 @@ document.getElementById('previewFlipBtn').addEventListener('click', () => { if (
 
 document.getElementById('addClassBtn').addEventListener('click', () => {
     const t = getTrainer();
-    t.addClass(`Clase ${t.getTotalClasses() + 1}`);
+    // The generated name can collide with a class the user renamed.
+    const existing = t.getClassNames();
+    let n = t.getTotalClasses() + 1;
+    let name = `Clase ${n}`;
+    while (isDuplicateClassName(name, existing)) {
+        n++;
+        name = `Clase ${n}`;
+    }
+    t.addClass(name);
     renderTrainingClasses();
     const container = document.getElementById('trainingClassesList');
     const cards = container.querySelectorAll('.training-class-card');

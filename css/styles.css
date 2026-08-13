@@ -917,6 +917,18 @@ button, a, input {
     border-bottom-color: currentColor;
 }
 
+.class-name-counter {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    margin-left: 0.4rem;
+    flex-shrink: 0;
+}
+
+.class-name-counter.at-limit {
+    color: #c0392b;
+    font-weight: 600;
+}
+
 .pencil-edit-icon {
     display: block;
     flex-shrink: 0;

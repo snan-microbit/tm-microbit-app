@@ -13,10 +13,18 @@ jobs:
       - name: Checkout (sin vendor/)
         uses: actions/checkout@v4
         with:
-          # vendor/ pesa ~28 MB y los tests no lo necesitan.
+          # vendor/ pesa ~28 MB y no hace falta acá: el chequeo de precache
+          # omite a propósito las entradas de vendor/ (las cubre el job de
+          # integridad) y los tests no lo necesitan.
           sparse-checkout: |
             js/
             tests/
+            tools/
+            css/
+            assets/
+            index.html
+            sw.js
+            manifest.json
             package.json
           sparse-checkout-cone-mode: false
 
@@ -27,6 +35,13 @@ jobs:
 
       - name: Ejecutar tests
         run: npm test
+
+      - name: Verificar precache del Service Worker
+        # Falla si index.html referencia un asset que el precache no cubre con
+        # la URL exacta (un ?v= alcanza para que caches.match() nunca lo sirva),
+        # si un módulo del grafo de imports quedó fuera de la lista, o si el
+        # precache apunta a un archivo inexistente (cache.addAll() es atómico).
+        run: node tools/check-precache.js
 
   checksums:
     name: Integridad de vendor/

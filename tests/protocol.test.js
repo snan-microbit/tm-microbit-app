@@ -112,6 +112,25 @@ describe('formatUartMessage', () => {
         assert.ok(text.endsWith('#0\n'));
     });
 
+    // — Unsafe characters —————————————————————————————————
+
+    it('strips # from the class name', () => {
+        const result = formatUartMessage('Clase #1', 95);
+        assert.equal(decode(result), 'Clase 1#95\n');
+    });
+
+    it('strips control characters from the class name', () => {
+        const result = formatUartMessage('a\nb', 50);
+        assert.equal(decode(result), 'a b#50\n');
+    });
+
+    it('fits a 15-byte name at 100% confidence', () => {
+        // 15 is MAX_CLASS_NAME_BYTES: the worst-case suffix "#100\n" costs 5.
+        const result = formatUartMessage('NombreMuyLargoD', 100);
+        assert.ok(result.length <= UART_MAX_BYTES);
+        assert.equal(decode(result), 'NombreMuyLargoD#100\n');
+    });
+
     // — Edge cases ————————————————————————————————————————
 
     it('handles empty class name', () => {

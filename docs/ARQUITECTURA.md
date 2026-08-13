@@ -21,12 +21,27 @@ Funciones internas clave (no exportadas): `renderModels()`, `openTrainingScreen(
 
 Todo texto de usuario interpolado en templates HTML (nombres de proyecto/clase, ids en `data-*`) pasa por `escapeHtml()` de `sanitize.js`, que escapa también comillas (seguro en contexto de atributo). Los thumbnails de las galerías (`renderTrainingClasses()`, `updateClassUI()`) se asignan por propiedad (`img.src`), nunca interpolados en el template.
 
+Los nombres de clase se normalizan con `class-name.js` en el punto donde se guardan: el input de renombrado filtra caracteres inseguros y limita a 15 bytes mientras el usuario escribe (con contador `.class-name-counter` visible al acercarse al límite), y el `change` rechaza duplicados (case-insensitive) con toast y revierte. `addClassBtn` busca el primer `Clase N` libre para no colisionar con una clase renombrada. Helper: `updateNameCounter(input)`.
+
 ### `js/protocol.js`
-Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Cubierto por tests unitarios (junto con `sanitize.js`); no debe adquirir dependencias de DOM/hardware.
+Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Cubierto por tests unitarios (junto con `sanitize.js` y `class-name.js`); no debe adquirir dependencias de DOM/hardware. Importa `stripUnsafeChars()` de `class-name.js` (única dependencia; la relación nunca va en sentido inverso).
 
 Exporta:
 - `UART_MAX_BYTES` — constante `20`, límite de bytes por mensaje BLE.
-- `formatUartMessage(className, confidence)` — devuelve `Uint8Array` con `"className#confidence\n"` codificado en UTF-8, garantizado ≤ 20 bytes. Redondea la confianza con `Math.round` (no la limita a 0-100). Si el mensaje excede el límite, trunca el nombre de clase a nivel de bytes retrocediendo sobre bytes de continuación UTF-8 para no partir caracteres multibyte.
+- `formatUartMessage(className, confidence)` — devuelve `Uint8Array` con `"className#confidence\n"` codificado en UTF-8, garantizado ≤ 20 bytes. Filtra el nombre con `stripUnsafeChars()` (defensa en profundidad: `#` y caracteres de control nunca llegan al aire). Redondea la confianza con `Math.round` (no la limita a 0-100). Si el mensaje excede el límite, trunca el nombre de clase a nivel de bytes retrocediendo sobre bytes de continuación UTF-8 para no partir caracteres multibyte.
+
+### `js/class-name.js`
+Lógica pura de nombres de clase (mismo patrón que `protocol.js`: sin APIs de navegador, importable desde `node:test`, cubierta por tests). No importa nada. Es la fuente única de las reglas de nombres para sus tres consumidores: el almacenamiento, el cable UART y el enum de TypeScript generado para MakeCode. La normalización ocurre **una sola vez, al guardar el nombre**; el resto del código lee el valor ya limpio.
+
+Exporta:
+- `MAX_CLASS_NAME_BYTES` — constante `15`. `UART_MAX_BYTES` (20) menos el sufijo del peor caso `#100\n` (5 bytes). Es literal, no derivado de `protocol.js`, para evitar un import circular.
+- `stripUnsafeChars(value)` — elimina `#` (separador UART), `"` y `\` (romperían el TypeScript generado) y reemplaza caracteres de control por espacio (`"a\nb"` → `"a b"`, no `"ab"`). Incluye `U+2028`/`U+2029` en ese set porque `JSON.stringify()` **no** los escapa: quedarían como salto de línea real dentro del literal del TypeScript generado.
+- `byteLength(value)` — largo en bytes UTF-8.
+- `truncateToBytes(value, maxBytes)` — recorta sin partir caracteres multibyte.
+- `normalizeClassName(value)` — forma canónica: filtra, colapsa espacios, hace trim y recorta a `MAX_CLASS_NAME_BYTES`. Devuelve `''` si no queda nada; el llamador decide (la UI revierte al nombre anterior).
+- `isDuplicateClassName(name, existingNames, ignoreIndex)` — comparación case-insensitive; `ignoreIndex` permite que un rename conserve su propio nombre.
+- `toEnumIdentifier(name, fallback)` — identificador ASCII válido para un miembro de enum TS. Translitera acentos, sanea **todos** los caracteres (incluido el primero) y prefija `_` si empieza con dígito.
+- `deriveEnumIdentifiers(classNames)` — un identificador por clase, con unicidad garantizada por sufijo numérico ante colisiones.
 
 ### `js/sanitize.js`
 Lógica pura de sanitización (mismo patrón que `protocol.js`: sin APIs de navegador, importable desde `node:test`, cubierta por tests). Centraliza el escape de HTML y la validación de forma de las muestras rehidratadas desde IndexedDB, que el proyecto trata como entrada de usuario.
@@ -59,7 +74,7 @@ Transfer learning de audio sobre la librería `speech-commands` (global `speechC
 
 Exporta: `initTrainer()`, `addClass(name)`, `removeClass(index)`, `renameClass(index, newName)` (lanza si la clase tiene muestras), `clearSamples(index)` (⚠ borra las muestras de **todas** las clases — limitación de `clearExamples()` de la librería), `getClasses()`, `getClassNames()`, `getTotalClasses()`, `getSamples(classIndex)`, `deleteSample(classIndex, sampleIndex)`, `recordSample(classIndex)` (~1 s), `startContinuousRecording(classIndex)` / `stopContinuousRecording()` (sin uso actual desde `app.js`), `getIsRecording()`, `train(onProgress)`, `startListening(callback)`, `stopListening()`, `isListening()`, `startVisualizer(canvasElement)`, `stopVisualizer()`, `saveModel(projectId)`, `loadSavedModel(localModelInfo)`, `deleteModel(storageKey)`, `saveSamples(projectId)`, `loadSamples(projectId)`, `deleteSamplesDB(projectId)`, `isTrained()`, `dispose()`.
 
-Detalles no obvios: `train()` serializa las muestras, recrea el transfer recognizer desde cero y las recarga (evita corrupción de estado interno al re-entrenar tras `transfer.load()`). Las predicciones de `startListening()` llegan en orden **alfabético** (`transfer.wordLabels()`), no en orden de creación de clases; la UI las matchea por nombre. `saveModel()` intenta `transfer.save()` y cae a guardar el modelo interno; si ambos fallan solo emite warning (las muestras se guardan aparte).
+Detalles no obvios: **el nombre de clase es la clave con la que el transfer recognizer indexa las muestras** (`countExamples()`, `serializeExamples()`), no un rótulo aparte. De ahí que `renameClass()` lance si la clase ya tiene muestras: cambiar el nombre sin re-mapear las dejaría huérfanas. `train()` serializa las muestras, recrea el transfer recognizer desde cero y las recarga (evita corrupción de estado interno al re-entrenar tras `transfer.load()`). Las predicciones de `startListening()` llegan en orden **alfabético** (`transfer.wordLabels()`), no en orden de creación de clases; la UI las matchea por nombre. `saveModel()` intenta `transfer.save()` y cae a guardar el modelo interno; si ambos fallan solo emite warning (las muestras se guardan aparte).
 
 ### `js/pose-trainer.js`
 Clasificador de pose: MediaPipe PoseLandmarker (lite, GPU, `runningMode: VIDEO`) extrae 33 keypoints (99 floats x,y,z) como features, y una cabeza TF.js `Dense(64, relu) → Dense(N, softmax)` (Adam 1e-3, 50 épocas) clasifica. Espera los globales `PoseLandmarker`/`FilesetResolver` que publica `mediapipe-loader.js` (con polling en `initTrainer()`).
@@ -86,7 +101,7 @@ Exporta:
 - `updateProjectModel(id, localModelInfo)` — guarda `localModel` y `classNames`; devuelve el proyecto actualizado o `null`.
 
 ### `js/makecode-embed.js`
-Panel MakeCode embebido por iframe (modo `?controller=1`) con comunicación `postMessage`. Genera el proyecto inicial con la extensión `pxt-tm-microbit-link-v2` (pineada por commit) y un archivo `tm-classes.ts` con enum tipado de las clases del modelo, regenerado en cada carga para mantener los nombres sincronizados. Valida los mensajes entrantes por ventana emisora **y** origen. Si MakeCode no responde en 8 s o no hay conexión, muestra overlay de fallback con botón de reintento.
+Panel MakeCode embebido por iframe (modo `?controller=1`) con comunicación `postMessage`. Genera el proyecto inicial con la extensión `pxt-tm-microbit-link-v2` (pineada por commit) y un archivo `tm-classes.ts` con enum tipado de las clases del modelo, regenerado en cada carga para mantener los nombres sincronizados. Los identificadores del enum se derivan con `deriveEnumIdentifiers()` de `class-name.js` (válidos y únicos aunque el nombre de clase no lo sea) y los nombres se interpolan con `JSON.stringify()`, tanto en la anotación `//% block=...` como en el array `_tmClaseNombres`. Valida los mensajes entrantes por ventana emisora **y** origen. Si MakeCode no responde en 8 s o no hay conexión, muestra overlay de fallback con botón de reintento.
 
 Exporta:
 - `openMakeCode(classNames, savedProject, onSave, projectName, iframeId, hideSimulator)` — abre el editor; `onSave` recibe el proyecto en cada guardado de MakeCode.
@@ -109,10 +124,15 @@ Script clásico (no módulo) que debe cargar **antes** de TF.js: declara `window
 
 ### Tests (`tests/`)
 Suites del runner nativo de Node (`node:test`, sin dependencias npm), corridas con `npm test` (script: `node --test tests/`):
-- `protocol.test.js` — cubre `formatUartMessage`: formato, redondeo, ausencia de clamp, límite de 20 bytes, truncado con sufijo preservado, fronteras UTF-8 (ñ, emojis) y casos borde; más un test de humo que verifica que `bluetooth.js` importa limpio en Node y conserva su API pública.
+- `protocol.test.js` — cubre `formatUartMessage`: formato, redondeo, ausencia de clamp, límite de 20 bytes, truncado con sufijo preservado, fronteras UTF-8 (ñ, emojis), filtrado de `#` y caracteres de control, y casos borde; más un test de humo que verifica que `bluetooth.js` importa limpio en Node y conserva su API pública.
 - `sanitize.test.js` — cubre `escapeHtml` (comillas dobles y simples, texto, no doble-escape, payload de escape de atributo de la auditoría, `null`/`undefined`/números) y los validadores de muestras (`isDataImageUrl`, `isValidImageSample`, `isValidPoseSample`).
+- `class-name.test.js` — cubre el filtrado de caracteres inseguros (incluidos `U+2028`/`U+2029`), el conteo y truncado por bytes UTF-8 sin partir caracteres, la forma canónica de `normalizeClassName()`, la detección de duplicados case-insensitive y la derivación de identificadores de enum (primer carácter saneado, dígito inicial, acentos, fallback y unicidad ante colisiones).
 
-El CI (GitHub Actions) los ejecuta en Node 20 y además verifica la integridad de `vendor/`: checksums SHA-256 de **todos** los archivos (`vendor/CHECKSUMS.txt`, MobileNet incluido) y un paso de cobertura que falla si aparece un archivo en `vendor/` sin checksum o una entrada huérfana.
+### Herramientas (`tools/`)
+Scripts de verificación en Node nativo, sin dependencias npm. No forman parte de lo que se sirve.
+- `check-precache.js` — verifica que el precache de `sw.js` y los assets que el navegador realmente pide estén exactamente en sincronía. Corre con `node tools/check-precache.js`. Falla si (a) una referencia local de `index.html` lleva query string, porque `caches.match()` compara la URL completa y la entrada precacheada nunca se serviría; (b) algo que el navegador pide no está en la lista — recolecta los `href`/`src` de `index.html` **y camina el grafo de imports estáticos** desde cada script local, que es como se detecta un módulo nuevo olvidado en el precache; (c) una entrada del precache apunta a un archivo inexistente, que haría fallar `cache.addAll()` entero (es atómico) y dejaría la app sin offline. `vendor/` se chequea solo por pertenencia, nunca contra disco ni descendiendo a sus bundles: el CI corre este paso sobre un checkout esparso sin `vendor/`, y su integridad la cubre el job de checksums.
+
+El CI (GitHub Actions) ejecuta los tests en Node 20, corre `tools/check-precache.js` y además verifica la integridad de `vendor/`: checksums SHA-256 de **todos** los archivos (`vendor/CHECKSUMS.txt`, MobileNet incluido) y un paso de cobertura que falla si aparece un archivo en `vendor/` sin checksum o una entrada huérfana.
 
 ## 3. Flujos principales
 
@@ -201,13 +221,15 @@ Modelos entrenados vía `tf.io` (`indexeddb://<storageKey>`, en la base interna 
 | `tm-audio-local-<projectId>` | Modelo de audio |
 | `tm-pose-local-<projectId>` | Cabeza de pose |
 
-Además, el Service Worker mantiene el Cache Storage `tm-microbit-v7.4` con el app shell y todo `vendor/`.
+Además, el Service Worker mantiene el Cache Storage `tm-microbit-v7.6` con el app shell y todo `vendor/`.
 
 ## 5. Protocolo BLE
 
 - **Servicio UART (Nordic):** `6e400001-b5a3-f393-e0a9-e50e24dcca9e`; característica TX `6e400003-...` (escritura con `writeValueWithoutResponse`).
 - **Mensaje:** `className#confidence\n`, UTF-8, máximo **20 bytes** (`UART_MAX_BYTES`). La confianza es el porcentaje redondeado a entero (sin clamp a 0-100 — el llamador ya envía 0-100).
+- **Nombres normalizados en origen:** los nombres de clase se limitan a **15 bytes** (`MAX_CLASS_NAME_BYTES`) al guardarse, de modo que el truncado en el cable no debería dispararse nunca en la práctica. Esto importa porque la extensión del micro:bit compara el nombre recibido contra el array `_tmClaseNombres` de `tm-classes.ts`: si el nombre se trunca en el cable pero no en el array, los bloques de detección dejan de dispararse **sin ningún error**. 15 y no 16: un nombre de 16 bytes funcionaría al 95 % de confianza y fallaría al 100 %.
 - **Truncado:** si el mensaje excede 20 bytes se recorta el nombre de clase a nivel de bytes, sin partir caracteres multibyte y preservando siempre el sufijo `#NN\n`.
+- **Filtrado:** `formatUartMessage()` elimina `#` y caracteres de control del nombre antes de codificar (`stripUnsafeChars()`, compartido con la normalización en origen).
 
 Ejemplos concretos:
 
@@ -229,24 +251,25 @@ Ejemplos concretos:
 - **Librerías self-hosted y pineadas** en `vendor/` (TF.js 4.22.0, Speech Commands 0.5.4, MediaPipe Tasks Vision 0.10.14, MobileNet v1 0.25, fuentes Nunito). Sin CDNs en runtime. El CI verifica `vendor/CHECKSUMS.txt` (SHA-256, cubre **todos** los archivos de `vendor/`, MobileNet incluido) y falla si hay archivos de `vendor/` sin checksum. Los hashes se calculan sobre los blobs de git (checkout LF de CI); al agregar un archivo a `vendor/`, agregar su hash con `git cat-file blob HEAD:<ruta> | sha256sum`.
 - **CSP estricta** en `index.html`: `script-src 'self' 'wasm-unsafe-eval'` (sin `unsafe-eval` — de ahí `regenerator-guard.js` y `mediapipe-loader.js`), `frame-src` limitado a `https://makecode.microbit.org`, `object-src 'none'`.
 - **MakeCode pineado a v7.1.47** (`MAKECODE_URL`) por el bug upstream microsoft/pxt-microbit#6629 (panic 070 con `music.*` + BLE en v8). No subir de versión sin verificar el fix. La extensión se pinea por commit en `generateProject()`.
-- **Offline-first:** Service Worker con cache-first para `vendor/` (inmutable, ~28 MB) y network-first para el app shell; no se cachean respuestas de error; fallback a `index.html` en navegaciones y 503 explícito como último recurso. Al tocar archivos precacheados hay que subir `CACHE_NAME` (convención `tm-microbit-vX.Y`).
+- **Offline-first:** Service Worker con cache-first para `vendor/` (inmutable, ~28 MB) y network-first para el app shell; no se cachean respuestas de error; fallback a `index.html` en navegaciones y 503 explícito como último recurso. Al tocar archivos precacheados hay que subir `CACHE_NAME` (convención `tm-microbit-vX.Y`). **Las referencias a assets locales en `index.html` no llevan query string:** `caches.match()` compara la URL completa, así que `styles.css?v=4.0` y la entrada `./css/styles.css` del precache son entradas distintas y la precacheada nunca se sirve. El cache-busting lo hace `CACHE_NAME`, no un `?v=`. Esta regla, la cobertura del precache sobre el grafo de imports y la existencia de cada entrada las verifica `tools/check-precache.js` en CI.
 - **Mensajes postMessage validados** por ventana emisora y origen exacto (`MAKECODE_ORIGIN`).
+- **Los nombres de clase se normalizan en el origen:** al autogenerarse (`Clase N`) y al renombrarse, vía `normalizeClassName()` de `class-name.js` (máximo 15 bytes UTF-8, sin `#`, comillas, backslash ni caracteres de control). Todo consumidor —UART, enum de MakeCode, `_tmClaseNombres`— lee el valor ya normalizado, garantizando que lo que va por el cable y lo que está en el array sean idénticos byte a byte. No hay normalización al rehidratar: un proyecto guardado antes de `class-name.js` puede tener un nombre que excede el presupuesto, en cuyo caso el bloque de detección no dispara. Como no hubo despliegue, la resolución es descartar esos proyectos, no migrarlos.
 - **Mínimos de entrenamiento:** 2 clases y 8 muestras por clase, validado en la UI (`updateTrainButton()`). Los `train()` de imagen y pose lo re-validan clase por clase; el de audio solo exige que haya ≥2 clases con 8+ muestras (una clase adicional con menos muestras no lo hace fallar — ahí la barrera es solo la UI).
 - **Webcam cuadrada center-crop:** el usuario ve exactamente el encuadre que recibe el modelo.
-- **La lógica testeable se extrae a módulos puros** (patrón `protocol.js`; también `sanitize.js`): sin APIs de navegador a nivel de módulo, importables desde `node:test`. Los tests documentan lo que el código hace.
+- **La lógica testeable se extrae a módulos puros** (patrón `protocol.js`; también `sanitize.js` y `class-name.js`): sin APIs de navegador a nivel de módulo, importables desde `node:test`. Los tests documentan lo que el código hace.
 - **IndexedDB y localStorage se tratan como entrada de usuario:** las muestras rehidratadas por `loadSamples()` se validan con `sanitize.js`; los thumbnails se asignan por propiedad (`img.src`), nunca interpolados en templates HTML. `escapeHtml()` escapa comillas y es la única vía para interpolar texto de usuario en templates (texto o atributo).
 - **localStorage defensivo:** datos corruptos se preservan en clave de backup; cuota excedida se reporta con `StorageQuotaError` y mensaje accionable.
 
 ## 7. Estado actual
 
-**Última actualización:** 2026-07-31
+**Última actualización:** 2026-08-01
 
-**Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART y sanitización) con CI (tests + checksums de todo vendor/ con verificación de cobertura).
+**Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART, sanitización y nombres de clase) con CI (tests + consistencia del precache + checksums de todo vendor/ con verificación de cobertura).
 
 **Deuda y pendientes conocidos:**
 
-- Hallazgos menores (baja/informativa) de la auditoría de seguridad del 2026-07-31 pendientes como backlog en `docs/PENDIENTES-SEGURIDAD.md` (7 ítems); los hallazgos altos/medios de esa auditoría ya fueron corregidos.
-- Cobertura de tests limitada al protocolo UART y a `sanitize.js`. Fases futuras previstas: serialización de proyectos en localStorage, operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
+- Quedan 4 hallazgos menores (baja/informativa) de la auditoría de seguridad del 2026-07-31 como backlog en `docs/PENDIENTES-SEGURIDAD.md`. Los altos/medios de esa auditoría ya fueron corregidos, y 3 de los menores (inyección de TS por nombre de clase, matching de rutas del SW por substring, filtrado del nombre en UART) se cerraron con la normalización de nombres de clase.
+- Cobertura de tests limitada al protocolo UART, `sanitize.js` y `class-name.js`. Fases futuras previstas: serialización de proyectos en localStorage, operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
 - `getClassColor()` en `app.js` ignora el índice y devuelve siempre el primer color: la paleta `CLASS_COLORS` de 6 colores está definida pero todas las clases se pintan iguales (decisión o regresión — a confirmar antes de "arreglarlo").
 - En `audio-trainer.js`, `clearSamples()` borra las muestras de **todas** las clases (limitación de `clearExamples()` de speech-commands); la UI no lo advierte.
 - `saveModel()` de audio puede terminar sin persistir pesos (solo deja warning en consola) si ni `transfer.save()` ni el modelo interno están disponibles; el proyecto queda dependiente de re-entrenar desde muestras.
