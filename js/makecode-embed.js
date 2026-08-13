@@ -7,6 +7,8 @@
      * Each iframe has its own message handler stored in `messageHandlers`.
      */
 
+    import { deriveEnumIdentifiers } from './class-name.js';
+
     const MAKECODE_URL = "https://makecode.microbit.org/v7.1.47";
 
     // Origen del iframe, usado como targetOrigin en postMessage y para
@@ -25,11 +27,15 @@
     const lastCallParams = {};
 
     function generateTmClassesTs(classNames) {
+        // Identifiers are derived and de-duplicated: a class name is user input
+        // and need not be a valid (nor unique) TypeScript identifier. Names are
+        // interpolated with JSON.stringify() so quotes and backslashes cannot
+        // break the generated file.
+        const identifiers = deriveEnumIdentifiers(classNames);
         const enumMembers = classNames.map((name, i) => {
-            const safeName = name.charAt(0).toUpperCase() + name.slice(1).replace(/[^a-zA-Z0-9]/g, '_');
-            return `    //% block="${name}"\n    ${safeName} = ${i}`;
+            return `    //% block=${JSON.stringify(name)}\n    ${identifiers[i]} = ${i}`;
         });
-        const arrayItems = classNames.map(n => `"${n}"`).join(', ');
+        const arrayItems = classNames.map(n => JSON.stringify(n)).join(', ');
         return `enum TMClase {\n${enumMembers.join(',\n')}\n}\nnamespace iaMachine {\n    export const _tmClaseNombres = [${arrayItems}];\n    //% blockId=tm_clase_picker\n    //% block="$clase"\n    //% blockHidden=true\n    //% shim=TD_ID\n    export function tmClasePicker(clase: TMClase): number {\n        return clase;\n    }\n}\n`;
     }
 

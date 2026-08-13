@@ -6,7 +6,7 @@
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'tm-microbit-v7.4';
+const CACHE_NAME = 'tm-microbit-v7.6';
 const urlsToCache = [
   './',
   './index.html',
@@ -26,6 +26,7 @@ const urlsToCache = [
   './js/pose-trainer.js',
   './js/bluetooth.js',
   './js/protocol.js',
+  './js/class-name.js',
   './js/sanitize.js',
   './js/makecode-embed.js',
   // Vendor: TF.js
@@ -155,7 +156,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  if (url.pathname.includes('/vendor/')) {
+  // El chequeo de origen evita que una URL cross-origin cuyo path contenga
+  // '/vendor/' entre en la rama cache-first.
+  if (url.origin === self.location.origin && url.pathname.includes('/vendor/')) {
     // Cache-first: immutable, versioned vendor assets (models, wasm, libs, fonts).
     event.respondWith(
       caches.match(event.request).then((cached) => {

@@ -5,6 +5,8 @@
  * effects: safe to import from Node tests.
  */
 
+import { stripUnsafeChars } from './class-name.js';
+
 // BLE UART writes are limited to 20 bytes per message.
 export const UART_MAX_BYTES = 20;
 
@@ -22,7 +24,10 @@ export function formatUartMessage(className, confidence) {
     const suffix = `#${Math.round(confidence)}\n`;
     const encoder = new TextEncoder();
     const suffixBytes = encoder.encode(suffix);
-    const nameBytes = encoder.encode(className);
+    // Defence in depth: names are normalized where they are stored, so this is
+    // a no-op for well-formed input. It guarantees no code path can put the
+    // field separator or a newline on the wire.
+    const nameBytes = encoder.encode(stripUnsafeChars(className));
 
     const totalLength = nameBytes.length + suffixBytes.length;
 
