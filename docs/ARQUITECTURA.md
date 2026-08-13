@@ -262,7 +262,9 @@ Ejemplos concretos:
 
 ## 7. Estado actual
 
-**Última actualización:** 2026-08-01
+**Última actualización:** 2026-08-13
+
+- **El modelo base de audio no está self-hosteado.** `vendor/` tiene la librería `speech-commands` pero no los pesos ni la metadata de `BROWSER_FFT`, que la librería descarga de `storage.googleapis.com` en runtime. La CSP (`connect-src 'self' blob:`) lo bloquea, así que **crear o abrir un proyecto de audio falla siempre**. Contradice las restricciones "sin CDNs en runtime" y "offline-first" declaradas en la sección 6, que hoy solo se cumplen para imagen y pose.
 
 **Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART, sanitización y nombres de clase) con CI (tests + consistencia del precache + checksums de todo vendor/ con verificación de cobertura).
 
