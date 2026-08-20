@@ -7,9 +7,9 @@
   "author": "Plan Ceibal",
   "repository": {
     "type": "git",
-    "url": "https://github.com/snan-microbit/tm-microbit-app.git"
+    "url": "https://github.com/ceibal-microbit/ml-microbit-app.git"
   },
-  "homepage": "https://snan-microbit.github.io/tm-microbit-app/",
+  "homepage": "https://ceibal-microbit.github.io/ml-microbit-app/",
   "engines": {
     "node": ">=18.17"
   },
