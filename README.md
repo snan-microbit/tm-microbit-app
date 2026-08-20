@@ -126,7 +126,7 @@ Webcam → PoseLandmarker → 33 keypoints (99 floats: x, y, z) → Dense(64, re
 ### Estructura de Archivos
 
 ```
-tm-microbit-app/
+ml-microbit.github.io/
 ├── index.html              # UI principal (todas las pantallas + modales)
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service Worker (cache-first en vendor/, network-first en el resto)
