@@ -1,6 +1,10 @@
 # ML - micro:bit
 
+[![CI](https://github.com/ml-microbit/ml-microbit.github.io/actions/workflows/ci.yml/badge.svg)](https://github.com/ml-microbit/ml-microbit.github.io/actions/workflows/ci.yml)
+
 Progressive Web App (PWA) que entrena modelos de **Machine Learning en el navegador** y los conecta al **micro:bit** vía Bluetooth.
+
+**App publicada:** <https://ml-microbit.github.io>
 
 ## Características
 
@@ -122,7 +126,7 @@ Webcam → PoseLandmarker → 33 keypoints (99 floats: x, y, z) → Dense(64, re
 ### Estructura de Archivos
 
 ```
-tm-microbit-app/
+ml-microbit.github.io/
 ├── index.html              # UI principal (todas las pantallas + modales)
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service Worker (cache-first en vendor/, network-first en el resto)
