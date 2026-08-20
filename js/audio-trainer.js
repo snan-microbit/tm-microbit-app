@@ -38,8 +38,9 @@ let predictionCallback = null;
 // throws on a relative path, and anchoring to import.meta.url (rather than to
 // the document) keeps them correct no matter which path the document was
 // served from — the Service Worker answers any same-origin navigation with the
-// app shell. Hardcoding an absolute URL is not an option: the app is served
-// from a GitHub Pages subpath today and may move to a Ceibal server later.
+// app shell. Hardcoding an absolute URL is not an option: the app may be
+// served from the root of an origin or from a subpath, and the path has to
+// resolve correctly either way.
 const SPEECH_MODEL_URL = new URL(
     '../vendor/speech-commands/browser_fft/18w/model.json',
     import.meta.url

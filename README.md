@@ -1,6 +1,10 @@
 # ML - micro:bit
 
+[![CI](https://github.com/ml-microbit/ml-microbit.github.io/actions/workflows/ci.yml/badge.svg)](https://github.com/ml-microbit/ml-microbit.github.io/actions/workflows/ci.yml)
+
 Progressive Web App (PWA) que entrena modelos de **Machine Learning en el navegador** y los conecta al **micro:bit** vía Bluetooth.
+
+**App publicada:** <https://ml-microbit.github.io>
 
 ## Características
 
