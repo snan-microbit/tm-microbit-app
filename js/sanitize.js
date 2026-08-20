@@ -66,3 +66,24 @@ export function isValidPoseSample(sample, featureSize) {
     }
     return true;
 }
+
+/**
+ * Validates the spectrogram of an audio example ({data, frameSize}) against
+ * what generateSpectrogramThumb() in audio-trainer.js needs to draw a canvas:
+ * frameSize is the row count and data.length / frameSize the column count, so
+ * a zero frameSize or a length that is not a multiple of it yields a canvas of
+ * invalid or non-integer size instead of a thumbnail.
+ *
+ * Unlike the image and pose validators this takes the spectrogram, not the
+ * whole record: the transfer recognizer owns the surrounding shape and only
+ * the spectrogram reaches the canvas.
+ */
+export function isValidSpectrogram(spectrogram) {
+    if (!spectrogram) return false;
+    const { data, frameSize } = spectrogram;
+    if (!Number.isInteger(frameSize) || frameSize <= 0) return false;
+    // Float32Array as the library deserializes it; plain Array covers a
+    // hand-written record in IndexedDB.
+    if (!(data instanceof Float32Array) && !Array.isArray(data)) return false;
+    return data.length > 0 && data.length % frameSize === 0;
+}

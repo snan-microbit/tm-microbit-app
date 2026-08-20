@@ -43,7 +43,7 @@ function isExternal(url) {
  * vendor/ gets membership-checked but never touched on disk, and is never
  * descended into: it holds pinned third-party bundles whose internals are not
  * precached individually. CI runs this check on a sparse checkout without
- * vendor/ (~28 MB), so treating it explicitly is what keeps a local run and a
+ * vendor/ (~33 MB), so treating it explicitly is what keeps a local run and a
  * CI run from reaching different conclusions. Its integrity is the checksums
  * job's business.
  */

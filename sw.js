@@ -1,12 +1,12 @@
 // sw.js
 // Service Worker for PWA - Hybrid caching strategy:
-// - /vendor/* (TF.js, MediaPipe, MobileNet, fonts): cache-first. These files
-//   are versioned in their filename/path and never change in place, so there's
-//   no reason to re-fetch ~28MB of them over the network on every load.
+// - /vendor/* (TF.js, MediaPipe, MobileNet, speech-commands, fonts): cache-first.
+//   These files are versioned in their filename/path and never change in place,
+//   so there's no reason to re-fetch ~33MB of them over the network on every load.
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'tm-microbit-v7.6';
+const CACHE_NAME = 'tm-microbit-v7.7';
 const urlsToCache = [
   './',
   './index.html',
@@ -97,6 +97,11 @@ const urlsToCache = [
   './vendor/mobilenet/v1-0.25-224/group53-shard1of1',
   './vendor/mobilenet/v1-0.25-224/group54-shard1of1',
   './vendor/mobilenet/v1-0.25-224/group55-shard1of1',
+  // Vendor: modelo base de audio (BROWSER_FFT 18w)
+  './vendor/speech-commands/browser_fft/18w/metadata.json',
+  './vendor/speech-commands/browser_fft/18w/model.json',
+  './vendor/speech-commands/browser_fft/18w/group1-shard1of2',
+  './vendor/speech-commands/browser_fft/18w/group1-shard2of2',
   // Vendor: fonts
   './vendor/fonts/nunito-cyrillic-ext.woff2',
   './vendor/fonts/nunito-cyrillic.woff2',

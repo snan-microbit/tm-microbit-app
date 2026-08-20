@@ -13,7 +13,7 @@ jobs:
       - name: Checkout (sin vendor/)
         uses: actions/checkout@v4
         with:
-          # vendor/ pesa ~28 MB y no hace falta acá: el chequeo de precache
+          # vendor/ pesa ~33 MB y no hace falta acá: el chequeo de precache
           # omite a propósito las entradas de vendor/ (las cubre el job de
           # integridad) y los tests no lo necesitan.
           sparse-checkout: |
@@ -63,5 +63,21 @@ jobs:
           sed -E 's/^[0-9a-f]{64}[[:space:]]+\*?//' vendor/CHECKSUMS.txt | sort > /tmp/vendor-listado.txt
           if ! diff -u /tmp/vendor-listado.txt /tmp/vendor-real.txt; then
             echo '::error::vendor/ y CHECKSUMS.txt no coinciden: hay archivos sin checksum o entradas huérfanas'
+            exit 1
+          fi
+
+      - name: Verificar precache de vendor/ en el Service Worker
+        # tools/check-precache.js omite vendor/ a propósito: corre en el job de
+        # tests, sobre un checkout esparso que no lo incluye. Este job sí tiene
+        # el checkout completo, así que es el único lugar donde se puede
+        # verificar que todo vendor/ esté precacheado y que ninguna entrada
+        # apunte a un archivo inexistente. cache.addAll() es atómico: un solo
+        # 404 hace fallar la instalación del Service Worker y deja la app sin
+        # offline.
+        run: |
+          git ls-files vendor/ | grep -vx 'vendor/CHECKSUMS.txt' | sort > /tmp/vendor-archivos.txt
+          grep -oE "'\./vendor/[^']+'" sw.js | tr -d "'" | sed 's|^\./||' | sort > /tmp/vendor-precache.txt
+          if ! diff -u /tmp/vendor-precache.txt /tmp/vendor-archivos.txt; then
+            echo '::error::sw.js y vendor/ no coinciden: hay archivos sin precachear o entradas del precache que no existen'
             exit 1
           fi

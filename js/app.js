@@ -360,7 +360,7 @@ async function openTrainingScreen(project) {
             showToast('Listo', 'success');
         } catch (error) {
             console.error('Audio training init error:', error);
-            showToast('Error al inicializar micrófono', 'error');
+            showToast('Error al iniciar el entrenador de audio', 'error');
             showScreen('homeScreen');
         }
 
