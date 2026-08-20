@@ -130,7 +130,7 @@ Script clásico (no módulo) que debe cargar **antes** de TF.js: declara `window
 `model-loader.js` y `predictions.js` implementaban la importación de modelos de Teachable Machine por URL; la feature se eliminó y los archivos se conservan fuera del flujo de carga (nada los importa; no están en el precache del SW). Su README documenta los pasos para re-habilitarlos. Nota: tal como está archivado, `predictions.js` importa `./bluetooth.js`, ruta que solo vuelve a resolver si los archivos se mueven de vuelta a `js/` como indica ese README.
 
 ### Tests (`tests/`)
-Suites del runner nativo de Node (`node:test`, sin dependencias npm), corridas con `npm test` (script: `node --test tests/`):
+Suites del runner nativo de Node (`node:test`, sin dependencias npm), corridas con `npm test` (script: `node --test`, sin argumentos posicionales — descubre `**/*.test.js` desde la raíz del repo):
 - `protocol.test.js` — cubre `formatUartMessage`: formato, redondeo, ausencia de clamp, límite de 20 bytes, truncado con sufijo preservado, fronteras UTF-8 (ñ, emojis), filtrado de `#` y caracteres de control, y casos borde; más un test de humo que verifica que `bluetooth.js` importa limpio en Node y conserva su API pública.
 - `sanitize.test.js` — cubre `escapeHtml` (comillas dobles y simples, texto, no doble-escape, payload de escape de atributo de la auditoría, `null`/`undefined`/números) y los validadores de muestras (`isDataImageUrl`, `isValidImageSample`, `isValidPoseSample`, `isValidSpectrogram`).
 - `class-name.test.js` — cubre el filtrado de caracteres inseguros (incluidos `U+2028`/`U+2029`), el conteo y truncado por bytes UTF-8 sin partir caracteres, la forma canónica de `normalizeClassName()`, la detección de duplicados case-insensitive y la derivación de identificadores de enum (primer carácter saneado, dígito inicial, acentos, fallback y unicidad ante colisiones).
@@ -255,7 +255,7 @@ Ejemplos concretos:
 
 ## 6. Decisiones y restricciones vigentes
 
-- **Cero dependencias npm en runtime.** `package.json` existe solo para el script de test (`node --test tests/`, runner nativo de Node ≥18) y está marcado `private`. No introducir dependencias.
+- **Cero dependencias npm en runtime.** `package.json` existe solo para el script de test (`node --test`, runner nativo de Node ≥18) y está marcado `private`. No introducir dependencias. El script no lleva argumentos posicionales: desde Node 22 el runner interpreta un positional como patrón de archivo y no como directorio, así que `node --test tests/` falla antes de correr un solo test. Sin argumentos el comportamiento es idéntico de Node 18 a 24. Tampoco poner un glob: los globs del runner requieren Node ≥21 y el CI pinea Node 20.
 - **Vanilla JS con módulos ES, sin frameworks ni build step.** Lo que está en el repo es lo que se sirve.
 - **Librerías self-hosted y pineadas** en `vendor/` (TF.js 4.22.0, Speech Commands 0.5.4, MediaPipe Tasks Vision 0.10.14, MobileNet v1 0.25, modelo base de audio `BROWSER_FFT` 18w, fuentes Nunito; ~33 MiB en total). Sin CDNs en runtime. El CI verifica `vendor/CHECKSUMS.txt` (SHA-256, cubre **todos** los archivos de `vendor/`, MobileNet incluido) y falla si hay archivos de `vendor/` sin checksum. Los hashes se calculan sobre los blobs de git (checkout LF de CI); al agregar un archivo a `vendor/`, agregar su hash con `git cat-file blob HEAD:<ruta> | sha256sum`. `.gitattributes` (`vendor/** -text`) mantiene blob y working copy idénticos, así que el hash da lo mismo se calcule donde se calcule.
 - **CSP estricta** en `index.html`: `script-src 'self' 'wasm-unsafe-eval'` (sin `unsafe-eval` — de ahí `regenerator-guard.js` y `mediapipe-loader.js`), `frame-src` limitado a `https://makecode.microbit.org`, `object-src 'none'`.
@@ -271,7 +271,7 @@ Ejemplos concretos:
 
 ## 7. Estado actual
 
-**Última actualización:** 2026-08-13
+**Última actualización:** 2026-08-20
 
 **Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART, sanitización y nombres de clase) con CI (tests + consistencia del precache + checksums de todo vendor/ con verificación de cobertura).
 
@@ -286,6 +286,7 @@ Ejemplos concretos:
 - `startContinuousRecording()`/`stopContinuousRecording()` de audio están exportadas pero sin uso desde `app.js` (el batch usa `recordSample()` en loop con countdown).
 - `js/tm-import/` archivado con imports que no resuelven en su ubicación actual (esperado; ver su README para re-habilitar).
 - El botón `newModelBtn` del home está `display:none` (reemplazado por la card "Nuevo Proyecto"); el markup sigue en `index.html`.
+- **Conexión USB intermitente en el panel MakeCode embebido** (observado 2026-08-20): al descargar a la placa desde el iframe, la conexión WebUSB falla y a veces anda al reintentar. El mismo comportamiento se reproduce en el MakeCode oficial fuera de la app, así que la causa es upstream y no de la integración por iframe. Sin diagnóstico ni issue abierto; pendiente de investigar.
 
 ---
 
