@@ -1,0 +1,12 @@
+# vendor/ guarda bundles y modelos de terceros pineados. Marcarlos como
+# binarios desactiva toda conversión de fin de línea: los checksums de
+# vendor/CHECKSUMS.txt se calculan sobre los blobs de git y el CI los verifica
+# con `sha256sum -c` sobre el checkout, así que una conversión CRLF haría
+# divergir ambos valores según la config local de quien vendoriza.
+vendor/** -text
+
+# Excepción: CHECKSUMS.txt sí es texto y debe quedar en LF tanto en el blob
+# como en el working copy. Con `-text` heredado de la línea anterior, git lo
+# guardaría con los CRLF del checkout en Windows y `sha256sum -c` fallaría en
+# CI, porque el \r pasaría a formar parte del nombre de archivo.
+vendor/CHECKSUMS.txt text eol=lf

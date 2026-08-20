@@ -6,11 +6,19 @@
  * speechCommands is a global loaded via <script> in index.html.
  */
 
+import { isValidSpectrogram } from './sanitize.js';
+
 // Base recognizer (pre-trained speech commands model)
 let baseRecognizer = null;
 
 // Transfer recognizer (custom classes)
 let transfer = null;
+
+// Name given to the current transfer recognizer. Tracked here because
+// createTransfer() registers it in baseRecognizer.transferRecognizers and the
+// library exposes no way to look the name back up or to unregister it.
+let transferName = null;
+let transferSeq = 0;
 
 // Class names tracked separately
 let classNames = [];
@@ -23,6 +31,23 @@ let isRecording = false;
 
 // Prediction
 let predictionCallback = null;
+
+// Base model, self-hosted in vendor/. See docs/ARQUITECTURA.md.
+// Both URLs are absolute and anchored to this module's own location: the
+// library's metadata loader only accepts http://, https:// or file:// and
+// throws on a relative path, and anchoring to import.meta.url (rather than to
+// the document) keeps them correct no matter which path the document was
+// served from — the Service Worker answers any same-origin navigation with the
+// app shell. Hardcoding an absolute URL is not an option: the app is served
+// from a GitHub Pages subpath today and may move to a Ceibal server later.
+const SPEECH_MODEL_URL = new URL(
+    '../vendor/speech-commands/browser_fft/18w/model.json',
+    import.meta.url
+).href;
+const SPEECH_METADATA_URL = new URL(
+    '../vendor/speech-commands/browser_fft/18w/metadata.json',
+    import.meta.url
+).href;
 
 // Audio visualizer state
 let audioContext = null;
@@ -77,16 +102,77 @@ function generateSpectrogramThumb(spectrogramData, frameSize) {
     return thumb.toDataURL('image/png');
 }
 
+/**
+ * Rebuild classThumbs from the examples the transfer recognizer currently
+ * holds. Spectrograms are validated because they may have been rehydrated
+ * from IndexedDB, which this project treats as user input: a corrupt
+ * frameSize would size the canvas invalidly and throw mid-render, leaving the
+ * training screen half-drawn.
+ */
+function rebuildThumbs() {
+    classThumbs = {};
+    for (const name of classNames) {
+        const examples = transfer.getExamples(name);
+        if (!examples || examples.length === 0) continue;
+        classThumbs[name] = examples
+            .filter(ex => ex && ex.example && isValidSpectrogram(ex.example.spectrogram))
+            .map(ex => generateSpectrogramThumb(
+                ex.example.spectrogram.data,
+                ex.example.spectrogram.frameSize
+            ));
+    }
+}
+
 // ============================================
 // INIT
 // ============================================
 
-async function initTrainer() {
-    if (baseRecognizer) return;
+/**
+ * Create a transfer recognizer on the cached base and remember its name.
+ */
+function newTransfer() {
+    // Counter, not just Date.now(): createTransfer() throws if the name is
+    // already registered, and now that the registry outlives the screen two
+    // creates in the same millisecond would collide.
+    transferName = 'tm-audio-' + Date.now() + '-' + (++transferSeq);
+    return baseRecognizer.createTransfer(transferName);
+}
 
-    baseRecognizer = speechCommands.create('BROWSER_FFT');
-    await baseRecognizer.ensureModelLoaded();
-    transfer = baseRecognizer.createTransfer('tm-audio-' + Date.now());
+/**
+ * Drop the current transfer recognizer, unregistering it from the base.
+ * createTransfer() stores every recognizer it creates in
+ * baseRecognizer.transferRecognizers and offers no removal API. Since
+ * baseRecognizer now outlives the screen, skipping this would pile up a full
+ * transfer recognizer — with its collected spectrograms — on every open.
+ */
+function releaseTransfer() {
+    if (transferName && baseRecognizer && baseRecognizer.transferRecognizers) {
+        delete baseRecognizer.transferRecognizers[transferName];
+    }
+    transferName = null;
+    transfer = null;
+}
+
+async function initTrainer() {
+    if (baseRecognizer) {
+        // Base model kept from a previous screen: only the head is missing.
+        if (!transfer) transfer = newTransfer();
+        return;
+    }
+
+    const recognizer = speechCommands.create(
+        'BROWSER_FFT',
+        undefined,
+        SPEECH_MODEL_URL,
+        SPEECH_METADATA_URL
+    );
+    await recognizer.ensureModelLoaded();
+
+    // Publish only once the weights are in: assigning before the await would
+    // leave baseRecognizer non-null with no model behind it, and the guard
+    // above would then treat every later call as a no-op success.
+    baseRecognizer = recognizer;
+    transfer = newTransfer();
 
     console.log('Audio trainer ready');
 }
@@ -118,7 +204,7 @@ function renameClass(index, newName) {
 
 /**
  * Clear examples for a specific class name from the transfer recognizer.
- * speech-commands 0.4.0 clearExamples() clears ALL examples — so this
+ * speech-commands 0.5.4 clearExamples() clears ALL examples — so this
  * resets all class counts to 0. The UI reflects this via getClasses().
  */
 function clearSamples(index) {
@@ -270,21 +356,12 @@ async function train(onProgress) {
     // and reload samples. This avoids the "trainable" error that occurs
     // when trying to retrain after transfer.load() corrupted internal state.
     const serialized = transfer.serializeExamples();
-    transfer = baseRecognizer.createTransfer('tm-audio-' + Date.now());
+    releaseTransfer();
+    transfer = newTransfer();
     transfer.loadExamples(serialized, false);
 
     // Regenerate thumbnails since transfer was recreated
-    classThumbs = {};
-    for (const name of classNames) {
-        const examples = transfer.getExamples(name);
-        if (!examples) continue;
-        classThumbs[name] = examples.map(ex =>
-            generateSpectrogramThumb(
-                ex.example.spectrogram.data,
-                ex.example.spectrogram.frameSize
-            )
-        );
-    }
+    rebuildThumbs();
 
     const totalEpochs = 50;
     await transfer.train({
@@ -606,16 +683,10 @@ async function loadSamples(projectId) {
         return;
     }
 
-    classThumbs = {};
-    for (const name of classNames) {
-        const examples = transfer.getExamples(name);
-        if (!examples || examples.length === 0) continue;
-        classThumbs[name] = examples.map(ex =>
-            generateSpectrogramThumb(
-                ex.example.spectrogram.data,
-                ex.example.spectrogram.frameSize
-            )
-        );
+    try {
+        rebuildThumbs();
+    } catch (e) {
+        console.warn('Could not rebuild audio thumbnails:', e);
     }
 }
 
@@ -654,12 +725,18 @@ function dispose() {
     stopVisualizer();
     stopContinuousRecording();
 
-    transfer = null;
-    baseRecognizer = null;
+    releaseTransfer();
     classNames = [];
     classThumbs = {};
     isRecording = false;
     predictionCallback = null;
+
+    // baseRecognizer se mantiene vivo a propósito: son 5,9 MB de pesos y
+    // dispose() corre en TODA transición de pantalla (también al abrir
+    // proyectos de imagen o pose). Mismo criterio que poseLandmarker en
+    // pose-trainer.js. Sus tensores no se liberan porque el modelo de transfer
+    // comparte capas con el base: disponer uno dejaría al otro con tensores
+    // muertos.
 }
 
 export {

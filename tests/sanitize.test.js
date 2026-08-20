@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { escapeHtml, isDataImageUrl, isValidImageSample, isValidPoseSample } from '../js/sanitize.js';
+import { escapeHtml, isDataImageUrl, isValidImageSample, isValidPoseSample, isValidSpectrogram } from '../js/sanitize.js';
 
 describe('escapeHtml', () => {
 
@@ -134,5 +134,51 @@ describe('isValidPoseSample', () => {
     it('rejects non-array features and invalid thumbs', () => {
         assert.ok(!isValidPoseSample({ ...valid, features: 'no-array' }, FEATURE_SIZE));
         assert.ok(!isValidPoseSample({ ...valid, thumb: 'https://evil.example/t.png' }, FEATURE_SIZE));
+    });
+});
+
+describe('isValidSpectrogram', () => {
+
+    // Shape the speech-commands library produces: frameSize bins per frame,
+    // data holding whole frames back to back.
+    const FRAME_SIZE = 232;
+    const valid = {
+        data: new Float32Array(FRAME_SIZE * 43),
+        frameSize: FRAME_SIZE
+    };
+
+    it('accepts a spectrogram whose length is a whole number of frames', () => {
+        assert.ok(isValidSpectrogram(valid));
+    });
+
+    it('accepts a plain Array payload (hand-written IndexedDB record)', () => {
+        assert.ok(isValidSpectrogram({ data: [1, 2, 3, 4], frameSize: 2 }));
+    });
+
+    it('rejects a frameSize that would make the canvas invalid', () => {
+        assert.ok(!isValidSpectrogram({ ...valid, frameSize: 0 }));
+        assert.ok(!isValidSpectrogram({ ...valid, frameSize: -232 }));
+        assert.ok(!isValidSpectrogram({ ...valid, frameSize: 1.5 }));
+        assert.ok(!isValidSpectrogram({ ...valid, frameSize: '232' }));
+    });
+
+    it('rejects a length that is not a whole number of frames', () => {
+        // numFrames would be fractional and createImageData would throw.
+        assert.ok(!isValidSpectrogram({ data: new Float32Array(233), frameSize: FRAME_SIZE }));
+    });
+
+    it('rejects empty data', () => {
+        assert.ok(!isValidSpectrogram({ data: new Float32Array(0), frameSize: FRAME_SIZE }));
+    });
+
+    it('rejects payloads that are not numeric sequences', () => {
+        assert.ok(!isValidSpectrogram({ data: 'AAAA', frameSize: 2 }));
+        assert.ok(!isValidSpectrogram({ data: { length: 4 }, frameSize: 2 }));
+        assert.ok(!isValidSpectrogram({ frameSize: 2 }));
+    });
+
+    it('rejects null, undefined and a missing spectrogram', () => {
+        assert.ok(!isValidSpectrogram(null));
+        assert.ok(!isValidSpectrogram(undefined));
     });
 });
