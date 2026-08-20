@@ -2,7 +2,10 @@
 node_modules/
 
 # Configuración local de desarrollador
-.claude/
+# Excepción: .claude/agents/ SÍ se versiona — los subagentes de QA son parte
+# del método de trabajo del proyecto, no configuración de máquina.
+.claude/*
+!.claude/agents/
 .vscode/
 .idea/
 *.code-workspace
