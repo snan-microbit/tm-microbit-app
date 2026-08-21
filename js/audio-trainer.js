@@ -7,6 +7,7 @@
  */
 
 import { isValidSpectrogram } from './sanitize.js';
+import { SAMPLES_DB_NAME, SAMPLES_STORE, audioSamplesKey, audioModelKey } from './storage-keys.js';
 
 // Base recognizer (pre-trained speech commands model)
 let baseRecognizer = null;
@@ -133,10 +134,16 @@ function rebuildThumbs() {
  * Create a transfer recognizer on the cached base and remember its name.
  */
 function newTransfer() {
+    // This name is in-memory only: it keys the recognizer inside the library's
+    // own baseRecognizer.transferRecognizers registry. It is NOT a persisted
+    // key, which is why it does not come from storage-keys.js. It would become
+    // one if save()/load() were ever called without an explicit URL — the
+    // library then derives its own storage location from the name — so don't.
+    //
     // Counter, not just Date.now(): createTransfer() throws if the name is
     // already registered, and now that the registry outlives the screen two
     // creates in the same millisecond would collide.
-    transferName = 'tm-audio-' + Date.now() + '-' + (++transferSeq);
+    transferName = 'ml-audio-transfer-' + Date.now() + '-' + (++transferSeq);
     return baseRecognizer.createTransfer(transferName);
 }
 
@@ -553,8 +560,8 @@ function stopVisualizer() {
 
 function idbOpen() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open('tm-microbit', 1);
-        req.onupgradeneeded = e => e.target.result.createObjectStore('samples');
+        const req = indexedDB.open(SAMPLES_DB_NAME, 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore(SAMPLES_STORE);
         req.onsuccess = e => resolve(e.target.result);
         req.onerror = () => reject(req.error);
     });
@@ -563,8 +570,8 @@ function idbOpen() {
 async function idbPut(key, value) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction('samples', 'readwrite');
-        tx.objectStore('samples').put(value, key);
+        const tx = db.transaction(SAMPLES_STORE, 'readwrite');
+        tx.objectStore(SAMPLES_STORE).put(value, key);
         tx.oncomplete = () => { db.close(); resolve(); };
         tx.onerror = () => { db.close(); reject(tx.error); };
     });
@@ -573,8 +580,8 @@ async function idbPut(key, value) {
 async function idbGet(key) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction('samples', 'readonly');
-        const req = tx.objectStore('samples').get(key);
+        const tx = db.transaction(SAMPLES_STORE, 'readonly');
+        const req = tx.objectStore(SAMPLES_STORE).get(key);
         req.onsuccess = () => { db.close(); resolve(req.result); };
         req.onerror = () => { db.close(); reject(req.error); };
     });
@@ -583,15 +590,15 @@ async function idbGet(key) {
 async function idbDelete(key) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction('samples', 'readwrite');
-        tx.objectStore('samples').delete(key);
+        const tx = db.transaction(SAMPLES_STORE, 'readwrite');
+        tx.objectStore(SAMPLES_STORE).delete(key);
         tx.oncomplete = () => { db.close(); resolve(); };
         tx.onerror = () => { db.close(); reject(tx.error); };
     });
 }
 
 async function saveModel(projectId) {
-    const storageKey = 'tm-audio-local-' + projectId;
+    const storageKey = audioModelKey(projectId);
     let saved = false;
 
     // Try transfer.save() directly (may exist on some builds)
@@ -672,11 +679,11 @@ async function saveSamples(projectId) {
         console.warn('No examples to serialize:', e);
         return;
     }
-    await idbPut('tm-audio-samples-' + projectId, serialized);
+    await idbPut(audioSamplesKey(projectId), serialized);
 }
 
 async function loadSamples(projectId) {
-    const serialized = await idbGet('tm-audio-samples-' + projectId);
+    const serialized = await idbGet(audioSamplesKey(projectId));
     if (!serialized) return;
     try {
         transfer.loadExamples(serialized, false);
@@ -701,7 +708,7 @@ async function deleteModel(storageKey) {
 }
 
 async function deleteSamplesDB(projectId) {
-    await idbDelete('tm-audio-samples-' + projectId);
+    await idbDelete(audioSamplesKey(projectId));
 }
 
 // ============================================

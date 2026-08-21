@@ -15,7 +15,8 @@ PWA educativa de Ceibal: entrena modelos de ML en el navegador (imagen, audio, p
 
 - Un solo `index.html` con todas las pantallas; un solo `css/styles.css`.
 - Referenciar código por nombre de función, nunca por número de línea.
-- Persistencia: metadata en localStorage (`tm_microbit_models`), pesos en IndexedDB (`tm-local-{id}`, `tm-audio-local-{id}`, `tm-pose-local-{id}`), muestras en object store `samples`. Los helpers IDB duplicados por módulo son intencionales: no unificar.
+- Claves persistidas: todas se construyen en `js/storage-keys.js` (módulo puro, fuente única). Proyectos en localStorage bajo `ml-microbit-models`; muestras en la base IndexedDB `ml-microbit-app`, object store `samples`, con claves `ml-image-samples-{id}` / `ml-audio-samples-{id}` / `ml-pose-samples-{id}`; modelos entrenados vía `tf.io` con `ml-image-local-{id}` / `ml-audio-local-{id}` / `ml-pose-local-{id}`. No construir claves con literales sueltos: agregar un constructor al módulo.
+- Los helpers IDB duplicados por módulo son intencionales: no unificar.
 - En transiciones de pantalla: liberar webcam, detener audio, desconectar BLE, cerrar iframe de MakeCode, limpiar listeners, `dispose()` de trainers.
 - TF.js: tensores intermedios en `tf.tidy()`; disponer salidas de `predict()` tras `.data()`; al reentrenar, entrenar el head nuevo ANTES de disponer el viejo.
 - No mostrar validation accuracy al usuario.

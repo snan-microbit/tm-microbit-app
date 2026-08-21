@@ -24,7 +24,7 @@ Todo texto de usuario interpolado en templates HTML (nombres de proyecto/clase, 
 Los nombres de clase se normalizan con `class-name.js` en el punto donde se guardan: el input de renombrado filtra caracteres inseguros y limita a 15 bytes mientras el usuario escribe (con contador `.class-name-counter` visible al acercarse al límite), y el `change` rechaza duplicados (case-insensitive) con toast y revierte. `addClassBtn` busca el primer `Clase N` libre para no colisionar con una clase renombrada. Helper: `updateNameCounter(input)`.
 
 ### `js/protocol.js`
-Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Cubierto por tests unitarios (junto con `sanitize.js` y `class-name.js`); no debe adquirir dependencias de DOM/hardware. Importa `stripUnsafeChars()` de `class-name.js` (única dependencia; la relación nunca va en sentido inverso).
+Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Cubierto por tests unitarios (junto con `sanitize.js`, `class-name.js` y `storage-keys.js`); no debe adquirir dependencias de DOM/hardware. Importa `stripUnsafeChars()` de `class-name.js` (única dependencia; la relación nunca va en sentido inverso).
 
 Exporta:
 - `UART_MAX_BYTES` — constante `20`, límite de bytes por mensaje BLE.
@@ -42,6 +42,25 @@ Exporta:
 - `isDuplicateClassName(name, existingNames, ignoreIndex)` — comparación case-insensitive; `ignoreIndex` permite que un rename conserve su propio nombre.
 - `toEnumIdentifier(name, fallback)` — identificador ASCII válido para un miembro de enum TS. Translitera acentos, sanea **todos** los caracteres (incluido el primero) y prefija `_` si empieza con dígito.
 - `deriveEnumIdentifiers(classNames)` — un identificador por clase, con unicidad garantizada por sufijo numérico ante colisiones.
+
+### `js/storage-keys.js`
+Fuente única de los nombres de todo lo que la app persiste (mismo patrón que `protocol.js`: sin APIs de navegador, importable desde `node:test`, cubierta por tests). No importa nada. Existe porque los literales que construían claves estaban dispersos en cuatro archivos, sin constante compartida ni cobertura: un prefijo distinto entre el `saveSamples()` y el `loadSamples()` de un mismo trainer no produce ningún error, solo muestras que no cargan.
+
+Todo nombre que compite por un espacio de nombres del origen lleva prefijo `ml-`. La razón no es cosmética: GitHub Pages sirve los project sites de la organización en `https://ml-microbit.github.io/<repo>/`, el mismo origen que esta app, y localStorage, IndexedDB y Cache Storage están particionados por origen y no por path. El caso más expuesto son los `storageKey` de modelos, que no viven en la base propia sino en la interna de TF.js, compartida con cualquier app del origen que use la librería.
+
+Dos nombres quedan deliberadamente fuera del módulo. `SAMPLES_STORE` no lleva prefijo porque vive dentro de la base propia y no compite con nadie. `CACHE_NAME` sigue siendo un literal en `sw.js`, y esa sí es una excepción real: es un nombre de alcance de origen, pero el Service Worker es un script clásico de worker que no comparte el grafo de módulos ES de la app y no puede importar de acá; además su valor cambia en otra cadencia, en cada deploy que toca archivos precacheados.
+
+Exporta:
+- `MODELS_KEY` — `'ml-microbit-models'`, clave de localStorage con el array de proyectos.
+- `SAMPLES_DB_NAME` — `'ml-microbit-app'`, nombre de la base IndexedDB propia. El sufijo `-app` es deliberado: `ml-microbit` a secas es el nombre de la organización y por lo tanto el candidato más probable a ser elegido por otra app del mismo origen.
+- `SAMPLES_STORE` — `'samples'`, object store dentro de esa base.
+- `imageSamplesKey(projectId)` / `audioSamplesKey(projectId)` / `poseSamplesKey(projectId)` — clave del registro de muestras dentro del object store.
+- `imageModelKey(projectId)` / `audioModelKey(projectId)` / `poseModelKey(projectId)` — `storageKey` del modelo entrenado, dentro de la base de TF.js.
+- `corruptBackupKey(timestamp)` — clave de localStorage donde se preserva un valor corrupto de `MODELS_KEY` para inspección manual.
+
+Los siete constructores validan **dominio**, no solo centinelas: rechazan `undefined`, `null`, string vacío o en blanco, número no finito, y cualquier valor que no sea string ni número. La razón es que el id se rehidrata de localStorage, que el proyecto trata como entrada de usuario, y un valor que coerciona a vacío —`[]`, `''`, `'   '`— produce una clave sin nada después del último guión, que se escribiría en silencio y aparecería mucho después como muestras que no cargan. `0` y `'0'` son ids válidos y se aceptan.
+
+Un string con espacios alrededor se **rechaza, no se recorta**. Recortarlo volvería el mapeo id→clave no inyectivo —`'42'` y `'  42  '` compartirían clave— mientras `project-store.js` los sigue distinguiendo con `===`: los dos archivos discreparían sobre si dos registros son el mismo proyecto. Rechazar mantiene una sola noción de identidad. La coerción número→string sí se conserva, porque `corruptBackupKey()` recibe un timestamp. La versión de la base (`1`) **no** se centraliza acá a propósito: es un asunto de migración de esquema que cada `idbOpen()` maneja junto a su `onupgradeneeded`, no un espacio de nombres.
 
 ### `js/sanitize.js`
 Lógica pura de sanitización (mismo patrón que `protocol.js`: sin APIs de navegador, importable desde `node:test`, cubierta por tests). Centraliza el escape de HTML y la validación de forma de las muestras rehidratadas desde IndexedDB, que el proyecto trata como entrada de usuario.
@@ -68,6 +87,8 @@ Transfer learning de imagen: MobileNet v1 (alpha 0.25, entrada 224×224, self-ho
 
 Exporta: `initTrainer()`, `addClass(name)`, `removeClass(index)`, `renameClass(index, newName)`, `clearSamples(index)`, `getClasses()` (→ `[{name, count}]`), `getClassNames()`, `getTotalClasses()`, `getSamples(classIndex)` (→ `[{index, thumb}]`), `deleteSample(classIndex, sampleIndex)`, `captureOne(classIndex, webcamCanvas)`, `startCapture(classIndex, webcamCanvas)` (~5 fps), `stopCapture()`, `train(onProgress)`, `predict(canvas)` (→ `[{className, probability}]`), `saveModel(projectId)`, `loadSavedModel(localModelInfo)`, `deleteModel(storageKey)`, `saveSamples(projectId)`, `loadSamples(projectId)`, `deleteSamplesDB(projectId)`, `isTrained()`, `dispose()`.
 
+El nombre de la base IndexedDB, el del object store y las claves de muestras (`ml-image-samples-<id>`) y de modelo (`ml-image-local-<id>`) vienen de `storage-keys.js`; el módulo no construye ninguna con literales.
+
 Detalles no obvios: `train()` entrena una cabeza nueva **antes** de hacer dispose de la anterior — un `predict()` en vuelo sobre la cabeza vieja con lectura WebGL pendiente se corrompería si se la libera primero. Tras entrenar, libera las muestras en memoria (quedan las persistidas en IndexedDB). `loadSamples()` descarta registros de IndexedDB con forma inválida (`isValidImageSample()` de `sanitize.js`) y también los que fallan al decodificar como imagen (handler `onerror` — sin él, la promise de carga nunca resolvería y la pantalla quedaría colgada).
 
 ### `js/audio-trainer.js`
@@ -81,12 +102,16 @@ El modelo base está self-hosteado en `vendor/speech-commands/browser_fft/18w/` 
 
 Exporta: `initTrainer()`, `addClass(name)`, `removeClass(index)`, `renameClass(index, newName)` (lanza si la clase tiene muestras), `clearSamples(index)` (⚠ borra las muestras de **todas** las clases — limitación de `clearExamples()` de la librería), `getClasses()`, `getClassNames()`, `getTotalClasses()`, `getSamples(classIndex)`, `deleteSample(classIndex, sampleIndex)`, `recordSample(classIndex)` (~1 s), `startContinuousRecording(classIndex)` / `stopContinuousRecording()` (sin uso actual desde `app.js`), `getIsRecording()`, `train(onProgress)`, `startListening(callback)`, `stopListening()`, `isListening()`, `startVisualizer(canvasElement)`, `stopVisualizer()`, `saveModel(projectId)`, `loadSavedModel(localModelInfo)`, `deleteModel(storageKey)`, `saveSamples(projectId)`, `loadSamples(projectId)`, `deleteSamplesDB(projectId)`, `isTrained()`, `dispose()`.
 
+El nombre de la base IndexedDB, el del object store y las claves de muestras (`ml-audio-samples-<id>`) y de modelo (`ml-audio-local-<id>`) vienen de `storage-keys.js`; el módulo no construye ninguna con literales. No confundirlas con `transferName`, que nombra al recognizer de transfer dentro del registro en memoria de la librería y no se persiste.
+
 Detalles no obvios: **el nombre de clase es la clave con la que el transfer recognizer indexa las muestras** (`countExamples()`, `serializeExamples()`), no un rótulo aparte. De ahí que `renameClass()` lance si la clase ya tiene muestras: cambiar el nombre sin re-mapear las dejaría huérfanas. `train()` serializa las muestras, recrea el transfer recognizer desde cero y las recarga (evita corrupción de estado interno al re-entrenar tras `transfer.load()`). Las predicciones de `startListening()` llegan en orden **alfabético** (`transfer.wordLabels()`), no en orden de creación de clases; la UI las matchea por nombre. `saveModel()` intenta `transfer.save()` y cae a guardar el modelo interno; si ambos fallan solo emite warning (las muestras se guardan aparte).
 
 ### `js/pose-trainer.js`
 Clasificador de pose: MediaPipe PoseLandmarker (lite, GPU, `runningMode: VIDEO`) extrae 33 keypoints (99 floats x,y,z) como features, y una cabeza TF.js `Dense(64, relu) → Dense(N, softmax)` (Adam 1e-3, 50 épocas) clasifica. Espera los globales `PoseLandmarker`/`FilesetResolver` que publica `mediapipe-loader.js` (con polling en `initTrainer()`).
 
 Exporta: mismo contrato que `image-trainer.js` (con `captureOne(classIndex, webcamCanvas, imageSource, flip)` y `startCapture(...)` con firma extendida, y `captureOne` devuelve `false` si no detectó pose) más `extractKeypoints(imageSource, timestamp)`, `getLastLandmarks()` y `drawSkeleton(ctx, landmarks, canvasWidth, canvasHeight, flip)`.
+
+El nombre de la base IndexedDB, el del object store y las claves de muestras (`ml-pose-samples-<id>`) y de modelo (`ml-pose-local-<id>`) vienen de `storage-keys.js`; el módulo no construye ninguna con literales.
 
 Detalles no obvios: `dispose()` **no** libera `poseLandmarker` (recrearlo cuesta 2-3 s); solo libera la cabeza y las muestras. `loadSamples()` descarta registros de IndexedDB con forma inválida (`isValidPoseSample()` de `sanitize.js`, largo exacto de features incluido).
 
@@ -96,7 +121,7 @@ Exporta la clase `Webcam` — wrapper liviano de `getUserMedia`. El canvas es si
 Métodos: `constructor(flip)`, `setup(facingMode)` (`'user'` | `'environment'`), `play()`, `update()` (dibuja el frame actual al canvas), `stop()`; getters `canvas` y `video`.
 
 ### `js/project-store.js`
-CRUD de proyectos sobre `localStorage`. Tolerante a datos corruptos: si el JSON no parsea o no es array, preserva el valor bajo una clave de backup y devuelve `[]`.
+CRUD de proyectos sobre `localStorage`. Importa `MODELS_KEY` y `corruptBackupKey()` de `storage-keys.js`; no arma ninguna clave con literales propios. Tolerante a datos corruptos: si el JSON no parsea o no es array, preserva el valor bajo la clave que devuelve `corruptBackupKey(Date.now())` y devuelve `[]`.
 
 Exporta:
 - `loadModels()` — devuelve el array de proyectos (o `[]`).
@@ -133,6 +158,7 @@ Script clásico (no módulo) que debe cargar **antes** de TF.js: declara `window
 Suites del runner nativo de Node (`node:test`, sin dependencias npm), corridas con `npm test` (script: `node --test`, sin argumentos posicionales — descubre `**/*.test.js` desde la raíz del repo):
 - `protocol.test.js` — cubre `formatUartMessage`: formato, redondeo, ausencia de clamp, límite de 20 bytes, truncado con sufijo preservado, fronteras UTF-8 (ñ, emojis), filtrado de `#` y caracteres de control, y casos borde; más un test de humo que verifica que `bluetooth.js` importa limpio en Node y conserva su API pública.
 - `sanitize.test.js` — cubre `escapeHtml` (comillas dobles y simples, texto, no doble-escape, payload de escape de atributo de la auditoría, `null`/`undefined`/números) y los validadores de muestras (`isDataImageUrl`, `isValidImageSample`, `isValidPoseSample`, `isValidSpectrogram`).
+- `storage-keys.test.js` — cubre la forma exacta de las siete claves (las seis de registro más la de backup de datos corruptos, que se verifica derivada de `MODELS_KEY`), la equivalencia entre id numérico y string, el rechazo de dominio del guard (`undefined`, `null`, string vacío o en blanco, `NaN`, infinitos, objetos, arrays, booleanos y strings con espacios alrededor) junto con `0` como id válido, el prefijo `ml-` en todo nombre de alcance de origen, la ausencia del prefijo `tm` heredado, que el nombre de la base no sea el nombre pelado de la organización, y el invariante de que **ningún prefijo sea prefijo de otro** — más fuerte que la distinción mutua, porque un futuro constructor cuyo prefijo extienda a otro produciría claves que se leen como válidas de la familia más corta. El test recorre los pares por índice y no por valor (dos prefijos idénticos son la peor colisión y una comparación por valor los saltearía) y asserta que la clave termine en el id antes de derivar el prefijo por largo (sin eso, un constructor con sufijo dejaría el invariante evaluándose sobre una string basura).
 - `class-name.test.js` — cubre el filtrado de caracteres inseguros (incluidos `U+2028`/`U+2029`), el conteo y truncado por bytes UTF-8 sin partir caracteres, la forma canónica de `normalizeClassName()`, la detección de duplicados case-insensitive y la derivación de identificadores de enum (primer carácter saneado, dígito inicial, acentos, fallback y unicidad ante colisiones).
 
 ### Herramientas (`tools/`)
@@ -207,30 +233,36 @@ Solo se envía la clase ganadora de cada tanda de predicciones. Las predicciones
 
 | Clave | Contenido |
 |---|---|
-| `tm_microbit_models` | Array de proyectos: `{id, name, projectType, createdAt, lastUsed, makecodeProject, localModel?, classNames?}` |
-| `tm_microbit_models_corrupt_<timestamp>` | Backup automático del valor si se detectó corrupto al cargar |
+| `ml-microbit-models` | Array de proyectos: `{id, name, projectType, createdAt, lastUsed, makecodeProject, localModel?, classNames?}` |
+| `ml-microbit-models-corrupt-<timestamp>` | Backup automático del valor si se detectó corrupto al cargar. Es de solo escritura: ningún código lo lee de vuelta, existe para inspección manual |
 
-`localModel` según el tipo: `{source: 'local' \| 'local-audio' \| 'local-pose', storageKey, classNames, trainedAt}` (imagen agrega `featureExtractor: "mobilenet_v1_0.25_224"`).
+`localModel` según el tipo: `{source: 'local' \| 'local-audio' \| 'local-pose', storageKey, classNames, trainedAt}` (imagen agrega `featureExtractor: "mobilenet_v1_0.25_224"`). Los valores de `source` conservan su forma histórica y no llevan prefijo: son vocabulario interno del dato, no claves.
 
 ### IndexedDB
 
-Base propia `tm-microbit` (v1), object store `samples`:
+Base propia `ml-microbit-app` (v1), object store `samples`:
 
 | Clave | Contenido |
 |---|---|
-| `tm-samples-<projectId>` | Muestras de imagen: `[{ci, img224 (dataURL JPEG 224×224), thumb}]` |
-| `tm-audio-samples-<projectId>` | Muestras de audio serializadas por `transfer.serializeExamples()` |
-| `tm-pose-samples-<projectId>` | Muestras de pose: `[{ci, features (99 números), thumb}]` |
+| `ml-image-samples-<projectId>` | Muestras de imagen: `[{ci, img224 (dataURL JPEG 224×224), thumb}]` |
+| `ml-audio-samples-<projectId>` | Muestras de audio serializadas por `transfer.serializeExamples()` |
+| `ml-pose-samples-<projectId>` | Muestras de pose: `[{ci, features (99 números), thumb}]` |
 
-Modelos entrenados vía `tf.io` (`indexeddb://<storageKey>`, en la base interna de TF.js):
+El nombre de la base no es `ml-microbit` a propósito: ese es el nombre de la organización y por lo tanto el candidato más probable a ser elegido por otra app del mismo origen. A diferencia de una colisión de clave, una colisión de nombre de base falla duro — `indexedDB.open(nombre, 1)` contra una base que otra app creó en v2 rechaza con `VersionError`, y se cae toda la persistencia de muestras.
+
+Modelos entrenados vía `tf.io` (`indexeddb://<storageKey>`), **en la base interna de TF.js, no en `ml-microbit-app`**:
 
 | storageKey | Modelo |
 |---|---|
-| `tm-local-<projectId>` | Cabeza de imagen |
-| `tm-audio-local-<projectId>` | Modelo de audio |
-| `tm-pose-local-<projectId>` | Cabeza de pose |
+| `ml-image-local-<projectId>` | Cabeza de imagen |
+| `ml-audio-local-<projectId>` | Modelo de audio |
+| `ml-pose-local-<projectId>` | Cabeza de pose |
 
-Además, el Service Worker mantiene el Cache Storage `tm-microbit-v7.8` con el app shell y todo `vendor/`.
+Todos los nombres persistidos se construyen en `js/storage-keys.js`: las dos claves de localStorage, el nombre de la base, el del object store y las seis claves de registro. Ningún archivo arma claves con literales sueltos. La única excepción es `CACHE_NAME` en `sw.js`, por una razón técnica: el Service Worker es un script clásico de worker, no comparte el grafo de módulos ES de la app y no puede importar de este módulo.
+
+`storageKey` se persiste además como string dentro de cada proyecto, y hay dos caminos que lo tratan distinto: `saveModel()` de cada trainer lo **reconstruye** desde el `projectId` en cada entrenamiento, mientras que `loadSavedModel()` y `deleteProject()` leen el string **verbatim** del dato guardado. Por eso un cambio de esquema de claves rompe los proyectos ya guardados aunque el código sea consistente: el valor viejo persiste apuntando a un registro que ya no existe. Es el punto exacto donde rompe, y se resuelve borrando datos del sitio.
+
+Además, el Service Worker mantiene el Cache Storage `ml-microbit-v8.0` con el app shell y todo `vendor/`.
 
 ## 5. Protocolo BLE
 
@@ -260,27 +292,38 @@ Ejemplos concretos:
 - **Librerías self-hosted y pineadas** en `vendor/` (TF.js 4.22.0, Speech Commands 0.5.4, MediaPipe Tasks Vision 0.10.14, MobileNet v1 0.25, modelo base de audio `BROWSER_FFT` 18w, fuentes Nunito; ~33 MiB en total). Sin CDNs en runtime. El CI verifica `vendor/CHECKSUMS.txt` (SHA-256, cubre **todos** los archivos de `vendor/`, MobileNet incluido) y falla si hay archivos de `vendor/` sin checksum. Los hashes se calculan sobre los blobs de git (checkout LF de CI); al agregar un archivo a `vendor/`, agregar su hash con `git cat-file blob HEAD:<ruta> | sha256sum`. `.gitattributes` (`vendor/** -text`) mantiene blob y working copy idénticos, así que el hash da lo mismo se calcule donde se calcule.
 - **CSP estricta** en `index.html`: `script-src 'self' 'wasm-unsafe-eval'` (sin `unsafe-eval` — de ahí `regenerator-guard.js` y `mediapipe-loader.js`), `frame-src` limitado a `https://makecode.microbit.org`, `object-src 'none'`.
 - **MakeCode pineado a v7.1.47** (`MAKECODE_URL`) por el bug upstream microsoft/pxt-microbit#6629 (panic 070 con `music.*` + BLE en v8). No subir de versión sin verificar el fix. La extensión se pinea por commit en `generateProject()`.
-- **Offline-first:** Service Worker con cache-first para `vendor/` (inmutable, ~33 MB) y network-first para el app shell; no se cachean respuestas de error; fallback a `index.html` en navegaciones y 503 explícito como último recurso. Al tocar archivos precacheados hay que subir `CACHE_NAME` (convención `tm-microbit-vX.Y`). **Las referencias a assets locales en `index.html` no llevan query string:** `caches.match()` compara la URL completa, así que `styles.css?v=4.0` y la entrada `./css/styles.css` del precache son entradas distintas y la precacheada nunca se sirve. El cache-busting lo hace `CACHE_NAME`, no un `?v=`. Esta regla, la cobertura del precache sobre el grafo de imports y la existencia de cada entrada las verifica `tools/check-precache.js` en CI.
+- **Offline-first:** Service Worker con cache-first para `vendor/` (inmutable, ~33 MB) y network-first para el app shell; no se cachean respuestas de error; fallback a `index.html` en navegaciones y 503 explícito como último recurso. Al tocar archivos precacheados hay que subir `CACHE_NAME` (convención `ml-microbit-vX.Y`). **Las referencias a assets locales en `index.html` no llevan query string:** `caches.match()` compara la URL completa, así que `styles.css?v=4.0` y la entrada `./css/styles.css` del precache son entradas distintas y la precacheada nunca se sirve. El cache-busting lo hace `CACHE_NAME`, no un `?v=`. Esta regla, la cobertura del precache sobre el grafo de imports y la existencia de cada entrada las verifica `tools/check-precache.js` en CI.
 - **La app es path-agnostic y hoy se sirve desde la raíz del origen.** Toda ruta local es relativa: `start_url` e `icons[].src` del manifest, las entradas de `urlsToCache`, el `register('sw.js')` de `app.js`, `MOBILENET_URL` de `image-trainer.js`, las dos rutas de MediaPipe de `initTrainer()` en `pose-trainer.js` (`forVisionTasks()` y `modelAssetPath`) y los `url()` de las fuentes en `styles.css`; las dos URLs del modelo de audio se anclan a `import.meta.url`. Los anclajes difieren según quién resuelva cada ruta —el documento, el script del Service Worker, la hoja de estilos o el módulo—, pero para la pregunta raíz-vs-subpath son equivalentes; la diferencia entre `MOBILENET_URL` y las URLs de audio está explicada en la sección 2. Ni el manifest ni el registro del Service Worker declaran `scope`, así que cada uno cae en su default: el manifest, `start_url` truncada al último `/`; el registro, el directorio de `sw.js`. **Al servirse desde la raíz del origen en vez de un subpath, ese scope pasa a ser `/`,** con tres consecuencias reales: la rama cache-first del handler `fetch` entra con `url.pathname.includes('/vendor/')`, así que cualquier path same-origin que contenga `/vendor/` en cualquier posición queda pinneado hasta el próximo bump de `CACHE_NAME`; la rama network-first hace `cache.put()` de toda respuesta same-origin con status 200, no solo del app shell; y `clients.claim()` reclama clientes de todo el origen. (El fallback a `index.html` en navegaciones vive en el `.catch()` de la rama network-first y solo actúa sin conexión.) **Mientras el Service Worker filtre por substring, ningún otro repo de la organización puede publicar Pages sin que este Service Worker le interfiera:** los project sites se sirven en `https://<org>.github.io/<repo>/`, o sea el mismo origen que esta app. Ver la precondición anotada en la sección 7.
+- **Todo nombre persistido se construye en `js/storage-keys.js`** y lleva prefijo `ml-`, con dos excepciones declaradas: el object store `samples`, que vive dentro de la base propia y no compite con nadie, y `CACHE_NAME` en `sw.js`, que sí es un nombre de alcance de origen pero no puede importarse — el Service Worker es un script clásico de worker, fuera del grafo de módulos ES de la app — y además cambia en una cadencia distinta, en cada deploy que toca archivos precacheados. El prefijo no es cosmético: los project sites de la organización se sirven en `https://ml-microbit.github.io/<repo>/`, el mismo origen que esta app, y los tres mecanismos de almacenamiento están particionados por origen y no por path. Los `storageKey` de modelos son el caso crítico, porque viven en la base interna de TF.js junto a los de cualquier otra app del origen que use la librería. No construir claves con literales: agregar un constructor al módulo, que los tests cubren.
 - **Mensajes postMessage validados** por ventana emisora y origen exacto (`MAKECODE_ORIGIN`).
 - **Los nombres de clase se normalizan en el origen:** al autogenerarse (`Clase N`) y al renombrarse, vía `normalizeClassName()` de `class-name.js` (máximo 15 bytes UTF-8, sin `#`, comillas, backslash ni caracteres de control). Todo consumidor —UART, enum de MakeCode, `_tmClaseNombres`— lee el valor ya normalizado, garantizando que lo que va por el cable y lo que está en el array sean idénticos byte a byte. No hay normalización al rehidratar: un proyecto guardado antes de `class-name.js` puede tener un nombre que excede el presupuesto, en cuyo caso el bloque de detección no dispara. Como no hubo despliegue, la resolución es descartar esos proyectos, no migrarlos.
 - **Mínimos de entrenamiento:** 2 clases y 8 muestras por clase, validado en la UI (`updateTrainButton()`). Los `train()` de imagen y pose lo re-validan clase por clase; el de audio solo exige que haya ≥2 clases con 8+ muestras (una clase adicional con menos muestras no lo hace fallar — ahí la barrera es solo la UI).
 - **Webcam cuadrada center-crop:** el usuario ve exactamente el encuadre que recibe el modelo.
-- **La lógica testeable se extrae a módulos puros** (patrón `protocol.js`; también `sanitize.js` y `class-name.js`): sin APIs de navegador a nivel de módulo, importables desde `node:test`. Los tests documentan lo que el código hace.
+- **La lógica testeable se extrae a módulos puros** (patrón `protocol.js`; también `sanitize.js`, `class-name.js` y `storage-keys.js`): sin APIs de navegador a nivel de módulo, importables desde `node:test`. Los tests documentan lo que el código hace.
 - **IndexedDB y localStorage se tratan como entrada de usuario:** las muestras rehidratadas por `loadSamples()` se validan con `sanitize.js` en los tres trainers (`isValidImageSample`, `isValidPoseSample`, `isValidSpectrogram`); los thumbnails se asignan por propiedad (`img.src`), nunca interpolados en templates HTML. `escapeHtml()` escapa comillas y es la única vía para interpolar texto de usuario en templates (texto o atributo).
 - **localStorage defensivo:** datos corruptos se preservan en clave de backup; cuota excedida se reporta con `StorageQuotaError` y mensaje accionable.
 
 ## 7. Estado actual
 
-**Última actualización:** 2026-08-20
+**Última actualización:** 2026-08-21
 
-**Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART, sanitización y nombres de clase) con CI (tests + consistencia del precache + checksums de todo vendor/ con verificación de cobertura).
+**Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART, sanitización, nombres de clase y claves de almacenamiento) con CI (tests + consistencia del precache + checksums de todo vendor/ con verificación de cobertura).
 
 **Deuda y pendientes conocidos:**
 
 - Quedan 4 hallazgos menores (baja/informativa) de la auditoría de seguridad del 2026-07-31 como backlog en `docs/PENDIENTES-SEGURIDAD.md`. Los altos/medios de esa auditoría ya fueron corregidos. De los menores, dos —inyección de TS por nombre de clase y filtrado del nombre en UART— se cerraron con la normalización de nombres de clase; el de **matching de rutas del SW por substring lo cerró solo parcialmente** el chequeo `url.origin === self.location.origin` del handler `fetch` de `sw.js`, que descarta las URLs cross-origin: el matching same-origin sigue siendo `includes('/vendor/')`.
-- **Precondición para mover `pxt-tm-microbit-link-v2` a la organización `ml-microbit`:** ese PR tiene que endurecer `sw.js` **antes** de habilitar Pages en el repo de la extensión — filtrar por `self.registration.scope` en vez de por substring, tanto en la rama `/vendor/` del handler `fetch` como en el `cache.put()` de la rama network-first. Los project sites de la organización se sirven en `https://ml-microbit.github.io/<repo>/`, el mismo origen que esta app, y con el scope en `/` este Service Worker interceptaría sus requests. Ver el bullet de path-agnosticismo de la sección 6.
-- Cobertura de tests limitada al protocolo UART, `sanitize.js` y `class-name.js`. Fases futuras previstas: serialización de proyectos en localStorage, operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
+- **Precondición para mover `pxt-tm-microbit-link-v2` a la organización `ml-microbit`:** ese PR tiene que endurecer `sw.js` **antes** de habilitar Pages en el repo de la extensión. Son dos problemas distintos, y el segundo no lo resuelve el fix del primero:
+  1. **Interferencia en `fetch`** — filtrar por `self.registration.scope` en vez de por substring, tanto en la rama `/vendor/` del handler `fetch` como en el `cache.put()` de la rama network-first. Afecta qué se sirve.
+  2. **Borrado de datos ajenos en `activate`** — el predicado actual borra todo cache cuyo nombre no sea el `CACHE_NAME` exacto. `caches.keys()` devuelve los nombres de **todo el origen**: Cache Storage no está particionado por Service Worker ni por scope. Ya hoy, sin ningún rename de por medio, cada activación de una versión nueva de este Service Worker borraría el Cache Storage completo de cualquier otra app del origen. El fix es filtrar también acá por `self.registration.scope` o por prefijo propio; no basta con corregir `fetch`.
+
+  Los project sites de la organización se sirven en `https://ml-microbit.github.io/<repo>/`, el mismo origen que esta app, y con el scope en `/` este Service Worker alcanza a todos. Ver el bullet de path-agnosticismo de la sección 6.
+- El rename L4 (contrato con MakeCode: `TMClase`, `tm-classes.ts`, `_tmClaseNombres`, `tm_clase_picker`, `controllerId: 'tm-microbit-app'`, id de la extensión) queda pendiente para el PR que mueva `pxt-tm-microbit-link-v2` a la organización, donde se reverifica contra hardware. Nota no obvia: la salida de L4 **vive persistida dentro de una clave de L3** — el `tm-classes.ts` generado viaja de vuelta en el `workspacesave` de MakeCode y se guarda como texto plano dentro de `makecodeProject.text`, en `ml-microbit-models`. No genera conflicto porque ese archivo se regenera en cada carga del panel y el texto viejo se pisa solo.
+- **`deleteProject()` puede dejar un borrado que no borra.** Si `deleteSamplesDB()` falla, la excepción aborta la función antes de `saveModels()`: el proyecto sigue en la lista, sus muestras pueden haber quedado a medio borrar, y el usuario no ve ningún error. El handler no tiene `try/catch`. Es un bug de comportamiento, no endurecimiento. El guard de `storage-keys.js` amplía su alcance: un registro con `id` malformado —ausente, vacío o con espacios— ahora lanza al construir la clave de muestras, así que también aborta el borrado antes de `saveModels()` y deja el proyecto indeleteable sin ningún feedback. Es el comportamiento correcto del guard (fallar rápido sobre dato corrupto), pero es el caso a contemplar cuando se agregue el `try/catch`.
+- **La validación de forma del `id` pertenece a `loadModels()`, no al constructor de claves.** Hoy `loadModels()` valida el contenedor (parsea con `try/catch` y exige un array) pero devuelve los registros crudos, y el id recién se valida al armar cada clave. Eso deja dos nociones de identidad de proyecto que no coinciden: `storage-keys.js` coerciona número a string, mientras `project-store.js` y `renderModels()` comparan con `===`, de modo que un registro con id numérico produce claves correctas pero resulta imposible de abrir y de borrar. Corresponde validar y canonizar cada registro en la frontera de rehidratación —función pura testeable, mismo patrón que `sanitize.js`—, descartando los que no tengan id válido y deduplicando por id canónico. Es la misma idea que el ítem del `storageKey` verbatim y los cierra juntos.
+- **`preserveCorruptData()` no tiene cota.** Escribe un backup nuevo en cada `loadModels()` mientras el valor siga corrupto, y `loadModels()` se llama desde siete lugares. Contra una cuota de localStorage que ahora se comparte con cualquier otra app del origen, un valor corrupto persistente puede llenarla sola. Corresponde una cota (un backup por valor corrupto, o descartar el anterior).
+- **`storageKey` se lee verbatim del dato guardado** y se pasa a `tf.io` sin validar su forma. El auditor verificó que no hay path traversal —TF.js la trata como clave opaca— pero sí alcance arbitrario: un valor manipulado en localStorage puede leer o borrar cualquier clave del keyspace de TF.js, que ahora se comparte con las demás apps del origen. Mitigación natural: validar que el valor coincida con el que produciría el constructor correspondiente de `storage-keys.js`.
+- **`app.js` vuelca `error.message` crudo a los toasts.** Los mensajes de error internos están en inglés por convención del proyecto, así que cualquier fallo interno le llega al docente en inglés y con vocabulario técnico. Corresponde separar el mensaje de usuario del mensaje de diagnóstico.
+- Cobertura de tests limitada al protocolo UART, `sanitize.js`, `class-name.js` y `storage-keys.js`. Fases futuras previstas: serialización de proyectos en localStorage, operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
 - `getClassColor()` en `app.js` ignora el índice y devuelve siempre el primer color: la paleta `CLASS_COLORS` de 6 colores está definida pero todas las clases se pintan iguales (decisión o regresión — a confirmar antes de "arreglarlo").
 - En `audio-trainer.js`, `clearSamples()` borra las muestras de **todas** las clases (limitación de `clearExamples()` de speech-commands); la UI no lo advierte.
 - **`vendor/CHECKSUMS.txt` prueba inmutabilidad, no procedencia** (auditoría del 2026-08-13). Los hashes se calcularon sobre lo que se descargó, así que el CI verifica "estos bytes no cambiaron desde el commit", no "estos bytes son los del bucket oficial"; ningún archivo del repo registra de qué URL salió cada artefacto. Mitigación propuesta y **pospuesta**: `vendor/PROVENANCE.md` con URL, fecha y hash upstream de cada artefacto, más un verificador opcional fuera de CI.

@@ -140,8 +140,12 @@ ml-microbit.github.io/
 │   ├── ARQUITECTURA.md     # Fuente de verdad del estado del código
 │   └── PENDIENTES-SEGURIDAD.md  # Backlog de hallazgos menores de auditoría
 ├── tests/
-│   ├── protocol.test.js    # Tests del protocolo UART (node --test)
-│   └── sanitize.test.js    # Tests de escape HTML y validación de muestras
+│   ├── class-name.test.js   # Tests de normalización de nombres de clase
+│   ├── protocol.test.js     # Tests del protocolo UART (node --test)
+│   ├── sanitize.test.js     # Tests de escape HTML y validación de muestras
+│   └── storage-keys.test.js # Tests de las claves persistidas
+├── tools/
+│   └── check-precache.js   # Verifica que el precache del SW y los assets estén en sincronía
 ├── vendor/                 # Librerías self-hosted pineadas (TF.js, MediaPipe, MobileNet, fuentes)
 ├── .github/
 │   └── workflows/ci.yml    # CI: tests + checksums SHA-256 de vendor/
@@ -149,6 +153,8 @@ ml-microbit.github.io/
     ├── app.js              # Lógica principal, UI y coordinación
     ├── protocol.js         # Lógica pura del protocolo UART (formatUartMessage)
     ├── sanitize.js         # Escape HTML y validación de muestras de IndexedDB
+    ├── class-name.js       # Lógica pura de nombres de clase (normalización, enum TS)
+    ├── storage-keys.js     # Fuente única de las claves persistidas (localStorage, IDB)
     ├── image-trainer.js    # Transfer learning sobre MobileNet
     ├── audio-trainer.js    # Transfer learning sobre Speech Commands
     ├── pose-trainer.js     # MediaPipe PoseLandmarker + clasificador TF.js
