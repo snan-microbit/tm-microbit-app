@@ -12,7 +12,7 @@ Sos el revisor de código del proyecto ML-micro:bit, una PWA educativa de Plan C
 - TF.js 4.22.0 pinneado. MediaPipe Tasks Vision 0.10.14. Speech Commands 0.5.4.
 - Un solo `index.html` con todas las pantallas; un solo `css/styles.css`.
 - Español para strings de UI, inglés para código.
-- Persistencia: metadata en localStorage (`tm_microbit_models`), pesos en IndexedDB (`tm-local-{id}`, `tm-audio-local-{id}`, `tm-pose-local-{id}`), muestras en object store `samples`.
+- Persistencia: proyectos en localStorage bajo `ml-microbit-models`; muestras en la base IndexedDB `ml-microbit-app`, object store `samples`, con claves `ml-image-samples-{id}` / `ml-audio-samples-{id}` / `ml-pose-samples-{id}`; modelos entrenados vía `tf.io` con `ml-image-local-{id}` / `ml-audio-local-{id}` / `ml-pose-local-{id}`. Todos los nombres se construyen en `js/storage-keys.js`.
 - Bluetooth: UART `className#confidence\n`, máximo 20 bytes, keep-alive cada 2 min.
 
 ## Checklist de revisión
@@ -34,7 +34,7 @@ Verificá cada punto sobre los archivos modificados:
 
 ### Persistencia
 - [ ] Toda operación IndexedDB tiene manejo de errores.
-- [ ] Las claves siguen el patrón existente (`tm-*-{id}`).
+- [ ] Ninguna clave persistida se construye con literales sueltos: todas salen de un constructor de `js/storage-keys.js`.
 - [ ] Los helpers IDB duplicados por módulo se mantienen así (es intencional, no "refactorizar").
 
 ### Pitfalls específicos de speech-commands

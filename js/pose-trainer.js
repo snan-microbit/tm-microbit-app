@@ -5,6 +5,7 @@
  */
 
 import { isValidPoseSample } from './sanitize.js';
+import { SAMPLES_DB_NAME, SAMPLES_STORE, poseSamplesKey, poseModelKey } from './storage-keys.js';
 
 // MediaPipe pose detector
 let poseLandmarker = null;
@@ -353,7 +354,7 @@ async function predict(imageSource) {
 async function saveModel(projectId) {
     if (!head) throw new Error("No hay modelo entrenado");
 
-    const storageKey = 'tm-pose-local-' + projectId;
+    const storageKey = poseModelKey(projectId);
     await head.save('indexeddb://' + storageKey);
 
     return {
@@ -390,8 +391,8 @@ async function deleteModel(storageKey) {
 
 function idbOpen() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open('tm-microbit', 1);
-        req.onupgradeneeded = e => e.target.result.createObjectStore('samples');
+        const req = indexedDB.open(SAMPLES_DB_NAME, 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore(SAMPLES_STORE);
         req.onsuccess = e => resolve(e.target.result);
         req.onerror = () => reject(req.error);
     });
@@ -400,8 +401,8 @@ function idbOpen() {
 async function idbPut(key, value) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction('samples', 'readwrite');
-        tx.objectStore('samples').put(value, key);
+        const tx = db.transaction(SAMPLES_STORE, 'readwrite');
+        tx.objectStore(SAMPLES_STORE).put(value, key);
         tx.oncomplete = () => { db.close(); resolve(); };
         tx.onerror = () => { db.close(); reject(tx.error); };
     });
@@ -410,8 +411,8 @@ async function idbPut(key, value) {
 async function idbGet(key) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction('samples', 'readonly');
-        const req = tx.objectStore('samples').get(key);
+        const tx = db.transaction(SAMPLES_STORE, 'readonly');
+        const req = tx.objectStore(SAMPLES_STORE).get(key);
         req.onsuccess = () => { db.close(); resolve(req.result); };
         req.onerror = () => { db.close(); reject(req.error); };
     });
@@ -420,8 +421,8 @@ async function idbGet(key) {
 async function idbDelete(key) {
     const db = await idbOpen();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction('samples', 'readwrite');
-        tx.objectStore('samples').delete(key);
+        const tx = db.transaction(SAMPLES_STORE, 'readwrite');
+        tx.objectStore(SAMPLES_STORE).delete(key);
         tx.oncomplete = () => { db.close(); resolve(); };
         tx.onerror = () => { db.close(); reject(tx.error); };
     });
@@ -438,11 +439,11 @@ async function saveSamples(projectId) {
             });
         });
     });
-    await idbPut('tm-pose-samples-' + projectId, data);
+    await idbPut(poseSamplesKey(projectId), data);
 }
 
 async function loadSamples(projectId) {
-    const stored = await idbGet('tm-pose-samples-' + projectId);
+    const stored = await idbGet(poseSamplesKey(projectId));
     if (!stored?.length) return;
 
     // Reset in-memory samples before loading to avoid duplication on repeated calls
@@ -465,7 +466,7 @@ async function loadSamples(projectId) {
 }
 
 async function deleteSamplesDB(projectId) {
-    await idbDelete('tm-pose-samples-' + projectId);
+    await idbDelete(poseSamplesKey(projectId));
 }
 
 // ============================================

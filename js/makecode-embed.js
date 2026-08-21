@@ -42,8 +42,8 @@
     function generateProject(classNames, projectName) {
         const tmClassesTs = generateTmClassesTs(classNames);
         const pxtJson = JSON.stringify({
-            "name": projectName || "proyecto-tm",
-            "description": "Proyecto con Teachable Machine",
+            "name": projectName || "proyecto-ml",
+            "description": "Proyecto con ML - micro:bit",
             "dependencies": {
                 "core": "*",
                 "bluetooth": "*",

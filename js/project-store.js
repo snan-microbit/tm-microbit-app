@@ -3,7 +3,7 @@
  * Project persistence — CRUD operations on localStorage
  */
 
-const MODELS_KEY = 'tm_microbit_models';
+import { MODELS_KEY, corruptBackupKey } from './storage-keys.js';
 
 export function loadModels() {
     const stored = localStorage.getItem(MODELS_KEY);
@@ -35,7 +35,7 @@ export function loadModels() {
  */
 function preserveCorruptData(raw) {
     try {
-        const backupKey = `${MODELS_KEY}_corrupt_${Date.now()}`;
+        const backupKey = corruptBackupKey(Date.now());
         localStorage.setItem(backupKey, raw);
         console.warn(`[project-store] Datos corruptos preservados en "${backupKey}"`);
     } catch (e) {

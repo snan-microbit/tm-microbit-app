@@ -6,7 +6,7 @@
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'tm-microbit-v7.8';
+const CACHE_NAME = 'ml-microbit-v8.0';
 const urlsToCache = [
   './',
   './index.html',
@@ -28,6 +28,7 @@ const urlsToCache = [
   './js/protocol.js',
   './js/class-name.js',
   './js/sanitize.js',
+  './js/storage-keys.js',
   './js/makecode-embed.js',
   // Vendor: TF.js
   './vendor/tfjs/tfjs-4.22.0.min.js',
