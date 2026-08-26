@@ -9,7 +9,7 @@ import { openMakeCode, closeMakeCode } from './makecode-embed.js';
 import * as trainer from './image-trainer.js';
 import * as audioTrainer from './audio-trainer.js';
 import * as poseTrainer from './pose-trainer.js';
-import { loadModels, saveModels, addProject, deleteProject, updateProjectMakeCode, updateProjectModel, getQuarantineStatus, acknowledgeQuarantine } from './project-store.js';
+import { loadModels, saveModels, addProject, deleteProject, updateProjectMakeCode, updateProjectModel, updateProjectClassNames, getQuarantineStatus, acknowledgeQuarantine, StorageQuotaError } from './project-store.js';
 import { getConfig } from './trainer-config.js';
 import { escapeHtml } from './sanitize.js';
 import {
@@ -35,6 +35,16 @@ let predictionExpanded = false;
 
 let batchRecordingActive = false;
 let batchRecordingCancelled = false;
+
+// Persistencia de muestras con debounce. La captura sostenida corre a ~5 fps:
+// escribir en cada muestra serian cinco escrituras por segundo del dataset
+// entero. 1,5 s de inactividad es la ventana que se puede perder si el
+// navegador se cierra de golpe; al salir de la pantalla se fuerza el flush.
+let sampleSaveTimer = null;
+let sampleSaveDirty = false;
+// Las escrituras se encadenan para que dos flushes solapados no corran a la
+// vez sobre la misma clave de IndexedDB.
+let sampleSaveChain = Promise.resolve();
 
 // Preview modal state
 let previewWebcam = null;
@@ -363,6 +373,7 @@ async function openTrainingScreen(project) {
             // como camino propio fue lo que la desincronizó — recuperaba las
             // clases y no las muestras, y el primer train() las pisaba.
             let modelLoaded = false;
+            let samplesLoaded = 0;
             if (project.localModel) {
                 try {
                     await poseTrainer.loadSavedModel(project.localModel);
@@ -374,7 +385,7 @@ async function openTrainingScreen(project) {
 
             if (modelLoaded) {
                 showToast('Cargando muestras anteriores...', 'info');
-                await poseTrainer.loadSamples(project.id);
+                samplesLoaded = await poseTrainer.loadSamples(project.id);
                 if (poseTrainer.isTrained()) {
                     await openPredictionScreen(project);
                     return;
@@ -389,17 +400,18 @@ async function openTrainingScreen(project) {
                 document.getElementById('trainingCaptureSection').classList.remove('hidden');
                 knownClassNames.forEach(name => poseTrainer.addClass(name));
                 showToast('Cargando muestras anteriores...', 'info');
-                await poseTrainer.loadSamples(project.id);
+                samplesLoaded = await poseTrainer.loadSamples(project.id);
             } else {
                 showScreen('trainingScreen');
                 document.getElementById('trainingCaptureSection').classList.remove('hidden');
                 poseTrainer.addClass('Clase 1');
                 poseTrainer.addClass('Clase 2');
+                persistClassNames();
             }
 
             renderTrainingClasses();
             await openCaptureWebcamWithSkeleton();
-            showReadyToast(!modelLoaded && hasPriorWork);
+            showReadyToast(!modelLoaded && hasPriorWork, samplesLoaded);
         } catch (error) {
             console.error('Pose training init error:', error);
             showToast('Error al inicializar detector de pose', 'error');
@@ -420,6 +432,7 @@ async function openTrainingScreen(project) {
             // previo absorbe a la del modelo. Un modelo que no carga deja al
             // proyecto en el mismo estado "necesita reentrenar", no en uno aparte.
             let modelLoaded = false;
+            let samplesLoaded = 0;
 
             if (hasPriorWork) {
                 // Las clases van primero en los tres casos, y acá más que en
@@ -427,7 +440,7 @@ async function openTrainingScreen(project) {
                 // el recognizer indexa las muestras.
                 knownClassNames.forEach(name => audioTrainer.addClass(name));
                 showToast('Cargando muestras anteriores...', 'info');
-                await audioTrainer.loadSamples(project.id);
+                samplesLoaded = await audioTrainer.loadSamples(project.id);
 
                 if (project.localModel) {
                     try {
@@ -450,11 +463,12 @@ async function openTrainingScreen(project) {
                 audioTrainer.addClass('Ruido de fondo');
                 audioTrainer.addClass('Clase 1');
                 audioTrainer.addClass('Clase 2');
+                persistClassNames();
             }
 
             renderTrainingClasses();
             await openAudioVisualizer();
-            showReadyToast(!modelLoaded && hasPriorWork);
+            showReadyToast(!modelLoaded && hasPriorWork, samplesLoaded);
         } catch (error) {
             console.error('Audio training init error:', error);
             showToast('Error al iniciar el entrenador de audio', 'error');
@@ -476,6 +490,7 @@ async function openTrainingScreen(project) {
 
         // Tercera entrada al mismo estado: ver el comentario del flujo de pose.
         let modelLoaded = false;
+        let samplesLoaded = 0;
         if (project.localModel) {
             try {
                 await trainer.loadSavedModel(project.localModel);
@@ -487,7 +502,7 @@ async function openTrainingScreen(project) {
 
         if (modelLoaded) {
             showToast('Cargando muestras anteriores...', 'info');
-            await trainer.loadSamples(project.id);
+            samplesLoaded = await trainer.loadSamples(project.id);
             if (trainer.isTrained()) {
                 await openPredictionScreen(project);
                 return;
@@ -499,17 +514,18 @@ async function openTrainingScreen(project) {
             document.getElementById('trainingCaptureSection').classList.remove('hidden');
             knownClassNames.forEach(name => trainer.addClass(name));
             showToast('Cargando muestras anteriores...', 'info');
-            await trainer.loadSamples(project.id);
+            samplesLoaded = await trainer.loadSamples(project.id);
         } else {
             showScreen('trainingScreen');
             document.getElementById('trainingCaptureSection').classList.remove('hidden');
             trainer.addClass('Clase 1');
             trainer.addClass('Clase 2');
+            persistClassNames();
         }
 
         renderTrainingClasses();
         openCaptureWebcam();
-        showReadyToast(!modelLoaded && hasPriorWork);
+        showReadyToast(!modelLoaded && hasPriorWork, samplesLoaded);
     } catch (error) {
         console.error('Training init error:', error);
         showToast('Error al inicializar', 'error');
@@ -1123,6 +1139,7 @@ function wireTrainingClassEvents(container, config, t) {
             } else {
                 t.renameClass(idx(), newName);
             }
+            persistClassNames();
             setValue(newName);
         });
 
@@ -1153,6 +1170,7 @@ function wireTrainingClassEvents(container, config, t) {
             t.clearSamples(+btn.dataset.index);
             renderTrainingClasses();
             updateTrainButton();
+            scheduleSampleSave();
             if (config.captureMode === 'audio') showToast('Muestras borradas', 'success');
         });
     });
@@ -1169,6 +1187,7 @@ function wireTrainingClassEvents(container, config, t) {
                 batchRecordingCancelled = true;
             }
             t.removeClass(+btn.dataset.index);
+            persistClassNames();
             renderTrainingClasses();
         });
     });
@@ -1180,6 +1199,7 @@ function wireTrainingClassEvents(container, config, t) {
             t.deleteSample(ci, +btn.dataset.si);
             updateClassUI(ci);
             updateTrainButton();
+            scheduleSampleSave();
         });
     });
 
@@ -1201,6 +1221,7 @@ function wireTrainingClassEvents(container, config, t) {
             btn.addEventListener('click', async () => {
                 if (audioTrainer.getIsRecording()) return;
                 await recordWithCountdown(+btn.dataset.index);
+                scheduleSampleSave();
             });
         });
     } else {
@@ -1217,6 +1238,7 @@ function wireTrainingClassEvents(container, config, t) {
                     t.captureOne(ci, activeWebcam.canvas);
                 }
                 updateClassUI(ci);
+                scheduleSampleSave();
             });
         });
     }
@@ -1271,6 +1293,7 @@ function wireTrainingClassEvents(container, config, t) {
 
                 updateClassUI(ci);
                 updateTrainButton();
+                scheduleSampleSave();
             });
         });
     } else {
@@ -1284,6 +1307,7 @@ function wireTrainingClassEvents(container, config, t) {
                     clearInterval(btn._updateInterval);
                     btn.innerHTML = '<span class="hold-dot"></span> ' + config.captureHoldLabel;
                     updateClassUI(ci);
+                    scheduleSampleSave();
                 } else {
                     container.querySelectorAll('.btn-capture-hold-unified.capturing').forEach(other => {
                         other.classList.remove('capturing');
@@ -1396,6 +1420,72 @@ async function recordWithCountdown(classIndex, current = null, total = null) {
 
     updateClassUI(classIndex);
     updateTrainButton();
+}
+
+/**
+ * Guarda los nombres de clase del proyecto abierto.
+ *
+ * Se llama en cada cambio estructural —crear las clases por defecto, agregar,
+ * renombrar, borrar— y no despues de capturar: las muestras tienen su propio
+ * camino con debounce. Sin esto, un proyecto sin entrenar vuelve como nuevo y
+ * sus muestras guardadas quedan huerfanas.
+ */
+function persistClassNames() {
+    if (!currentModel) return;
+    try {
+        const updated = updateProjectClassNames(currentModel.id, getTrainer().getClassNames());
+        if (updated) currentModel = updated;
+    } catch (e) {
+        console.error('[app] No se pudieron guardar los nombres de clase:', e);
+        // StorageQuotaError ya trae un mensaje en español pensado para el usuario.
+        // Cualquier otro error trae texto en inglés y de biblioteca: no se muestra.
+        showToast(
+            e instanceof StorageQuotaError ? e.message : 'No se pudieron guardar los cambios.',
+            'error'
+        );
+    }
+}
+
+function scheduleSampleSave() {
+    if (!currentModel) return;
+    sampleSaveDirty = true;
+    if (sampleSaveTimer) clearTimeout(sampleSaveTimer);
+    sampleSaveTimer = setTimeout(() => { flushSampleSave(); }, 1500);
+}
+
+/**
+ * Cancela el guardado pendiente sin escribir.
+ *
+ * Lo usa el entrenamiento: train() vacia las muestras en memoria del trainer de
+ * imagen, asi que un timer que sobreviva al inicio del entrenamiento escribiria
+ * un dataset vacio encima del bueno.
+ */
+function cancelPendingSampleSave() {
+    if (sampleSaveTimer) clearTimeout(sampleSaveTimer);
+    sampleSaveTimer = null;
+    sampleSaveDirty = false;
+}
+
+/**
+ * Escribe ahora si hay algo pendiente. Devuelve una promesa que resuelve cuando
+ * la escritura termino, para poder esperarla antes de dispose().
+ */
+async function flushSampleSave() {
+    const wasDirty = sampleSaveDirty;
+    cancelPendingSampleSave();
+    if (!wasDirty || !currentModel) return sampleSaveChain;
+
+    const id = currentModel.id;
+    const t = getTrainer();
+    sampleSaveChain = sampleSaveChain.then(async () => {
+        try {
+            await t.saveSamples(id);
+        } catch (e) {
+            console.error('[app] No se pudieron guardar las muestras:', e);
+            showToast('No se pudieron guardar las muestras. Puede que no quede espacio en el navegador.', 'error');
+        }
+    });
+    return sampleSaveChain;
 }
 
 function updateTrainButton() {
@@ -1663,12 +1753,21 @@ function updateNameCounter(input) {
  * aunque el docente lo haya entrenado. Sin decirlo, la pantalla parece haber
  * perdido el trabajo; el mensaje es la única señal de que las muestras están y
  * de qué falta hacer.
+ *
+ * El mensaje se decide con las muestras que efectivamente se cargaron, no con
+ * las clases: loadSamples() sale en silencio cuando la clave no está, cuando el
+ * valor no valida y cuando la carga tira, y prometer muestras que no volvieron
+ * es peor que no decir nada — la docente cree que el error es de ella.
  */
-function showReadyToast(needsRetrain) {
-    if (needsRetrain) {
+function showReadyToast(needsRetrain, samplesLoaded) {
+    if (!needsRetrain) {
+        showToast('Listo', 'success');
+        return;
+    }
+    if (samplesLoaded > 0) {
         showToast('Recuperamos tus clases y tus muestras. Entrená de nuevo para volver a usar el modelo.', 'info');
     } else {
-        showToast('Listo', 'success');
+        showToast('Recuperamos tus clases, pero no encontramos las muestras guardadas. Vas a tener que capturarlas de nuevo.', 'error');
     }
 }
 
@@ -1780,9 +1879,23 @@ document.getElementById('trainProjectName').addEventListener('keypress', (e) => 
 });
 
 // Training screen
-document.getElementById('trainingBackBtn').addEventListener('click', () => {
+document.getElementById('trainingBackBtn').addEventListener('click', async () => {
     batchRecordingActive = false;
     batchRecordingCancelled = true;
+    // Un hold de webcam/pose captura por su cuenta con un setInterval propio
+    // del trainer (~5 fps) que nunca pasa por scheduleSampleSave(): eso solo
+    // corre en la rama que responde al click de "Detener". Si se sale de la
+    // pantalla con un hold todavía activo, sampleSaveDirty sigue en false y
+    // flushSampleSave() no escribiría nada. Se fuerza el guardado acá, y se
+    // apaga cualquier ticker de UI de un hold activo (btn._updateInterval)
+    // antes de vaciar el DOM, para que no siga actualizando tarjetas ajenas
+    // si el próximo proyecto reutiliza los mismos data-index.
+    document.querySelectorAll('.btn-capture-hold-unified.capturing').forEach(btn => {
+        clearInterval(btn._updateInterval);
+    });
+    scheduleSampleSave();
+    // Antes de dispose(): dispose() llama a stopCapture() y vacia classes.
+    await flushSampleSave();
     closeCaptureWebcamSilent();
     audioTrainer.stopListening();
     audioTrainer.stopVisualizer();
@@ -1849,6 +1962,7 @@ document.getElementById('addClassBtn').addEventListener('click', () => {
         name = `Clase ${n}`;
     }
     t.addClass(name);
+    persistClassNames();
     renderTrainingClasses();
     const container = document.getElementById('trainingClassesList');
     const cards = container.querySelectorAll('.training-class-card');
@@ -1877,8 +1991,22 @@ document.getElementById('trainBtn').addEventListener('click', async () => {
     overlayLabel.textContent = 'Entrenando modelo...';
     overlay.classList.remove('hidden');
 
+    // El guardado explicito manda; lo que haya pendiente se descarta en vez
+    // de escribirse, porque train() vacia las muestras en memoria del
+    // trainer de imagen y un timer tardio escribiria un dataset vacio.
+    cancelPendingSampleSave();
     try {
         await t.saveSamples(currentModel.id);
+    } catch (e) {
+        console.error('[app] No se pudieron guardar las muestras antes de entrenar:', e);
+        overlay.classList.add('hidden');
+        overlayLabel.textContent = 'Entrenando modelo...';
+        showToast('No se pudieron guardar las muestras. Puede que no quede espacio en el navegador.', 'error');
+        btn.disabled = false;
+        return;
+    }
+
+    try {
         await t.train((epoch, total) => {
             const pct = Math.round((epoch + 1) / total * 100);
             overlayPct.textContent = `${pct}%`;

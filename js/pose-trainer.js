@@ -458,7 +458,7 @@ async function saveSamples(projectId) {
 
 async function loadSamples(projectId) {
     const stored = await idbGet(poseSamplesKey(projectId));
-    if (!stored?.length) return;
+    if (!stored?.length) return 0;
 
     // Reset in-memory samples before loading to avoid duplication on repeated calls
     // (e.g. after train() completes and the main flow calls loadSamples again).
@@ -467,6 +467,7 @@ async function loadSamples(projectId) {
         cls.count = 0;
     });
 
+    let loaded = 0;
     for (const s of stored) {
         // IndexedDB is user-modifiable: skip records whose shape or data
         // URLs don't match what saveSamples() writes.
@@ -476,7 +477,9 @@ async function loadSamples(projectId) {
             thumb: s.thumb
         });
         classes[s.ci].count++;
+        loaded++;
     }
+    return loaded;
 }
 
 async function deleteSamplesDB(projectId) {
