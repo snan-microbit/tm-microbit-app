@@ -6,7 +6,7 @@
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'ml-microbit-v8.2';
+const CACHE_NAME = 'ml-microbit-v8.3';
 const urlsToCache = [
   './',
   './index.html',

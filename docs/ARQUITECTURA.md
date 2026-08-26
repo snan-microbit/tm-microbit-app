@@ -37,6 +37,8 @@ Todo texto de usuario interpolado en templates HTML (nombres de proyecto/clase, 
 
 Los nombres de clase se normalizan con `class-name.js` en el punto donde se guardan: el input de renombrado filtra caracteres inseguros y limita a 15 bytes mientras el usuario escribe (con contador `.class-name-counter` visible al acercarse al límite), y el `change` rechaza duplicados (case-insensitive) con toast y revierte. `addClassBtn` busca el primer `Clase N` libre para no colisionar con una clase renombrada. Helper: `updateNameCounter(input)`.
 
+El ancho del input de nombre lo fija `autoSizeInput()` midiendo el texto en un `<span>` invisible. La tipografía del span se copia del input con `getComputedStyle()` (propiedad por propiedad, no con el atajo `font`, que devuelve cadena vacía en algunos navegadores cuando `font-family` es una lista) — así el CSS de `.class-name-input` queda como única fuente de la tipografía y nadie vuelve a hardcodear valores en el JS que se desincronicen del CSS. El `width` inline que deja pisa el `field-sizing: content` de esa misma regla CSS.
+
 ### `js/protocol.js`
 Lógica pura del protocolo UART, sin APIs de navegador (solo `TextEncoder`, también global en Node). Cubierto por tests unitarios (junto con `sanitize.js`, `class-name.js` y `storage-keys.js`); no debe adquirir dependencias de DOM/hardware. Importa `stripUnsafeChars()` de `class-name.js` (única dependencia; la relación nunca va en sentido inverso).
 
@@ -326,7 +328,7 @@ Todos los nombres persistidos se construyen en `js/storage-keys.js`: las dos cla
 
 `storageKey` se persiste además como string dentro de cada proyecto, y hay dos caminos que lo tratan distinto: `saveModel()` de cada trainer lo **reconstruye** desde el `projectId` en cada entrenamiento, mientras que `loadSavedModel()` y `deleteProject()` leen el string **verbatim** del dato guardado. Por eso un cambio de esquema de claves rompe los proyectos ya guardados aunque el código sea consistente: el valor viejo persiste apuntando a un registro que ya no existe. Desde la frontera de rehidratación ese valor ya no llega crudo al código: `canonicalizeProject()` acepta solo el `storageKey` que produciría el constructor vigente para ese id. **Un valor que no corresponde ya no cuesta el proyecto: se descarta `localModel` y el proyecto vuelve como no entrenado**, con su nombre, sus clases y sus bloques de MakeCode intactos, listo para reentrenar. Esa es la resolución vigente para los proyectos anteriores al rename `tm-` → `ml-` (que se hizo sin migración), y es mejor que el comportamiento desplegado hasta v8.0, donde el proyecto se listaba pero el modelo no cargaba nunca. Ya no hace falta borrar datos del sitio.
 
-Además, el Service Worker mantiene el Cache Storage `ml-microbit-v8.2` con el app shell y todo `vendor/`.
+Además, el Service Worker mantiene el Cache Storage `ml-microbit-v8.3` con el app shell y todo `vendor/`.
 
 ## 5. Protocolo BLE
 
