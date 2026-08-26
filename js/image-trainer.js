@@ -5,7 +5,7 @@
  */
 
 import { isValidImageSample } from './sanitize.js';
-import { SAMPLES_DB_NAME, SAMPLES_STORE, imageSamplesKey, imageModelKey } from './storage-keys.js';
+import { SAMPLES_DB_NAME, SAMPLES_DB_VERSION, SAMPLES_STORE, imageSamplesKey, imageModelKey } from './storage-keys.js';
 
 // Feature extractor (truncated MobileNet, immutable)
 let featureExtractor = null;
@@ -348,8 +348,22 @@ async function deleteModel(storageKey) {
 
 function idbOpen() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open(SAMPLES_DB_NAME, 1);
-        req.onupgradeneeded = e => e.target.result.createObjectStore(SAMPLES_STORE);
+        const req = indexedDB.open(SAMPLES_DB_NAME, SAMPLES_DB_VERSION);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            // Idempotent on purpose: on a future version bump this handler runs
+            // again against a database that already has the store, where
+            // createObjectStore() would throw ConstraintError.
+            if (!db.objectStoreNames.contains(SAMPLES_STORE)) {
+                db.createObjectStore(SAMPLES_STORE);
+            }
+        };
+        // On a version bump, another tab holding an open connection makes the
+        // request fire 'blocked' instead of 'success' or 'error'. Without this
+        // the promise never settles and the screen hangs with no message —
+        // the same class of failure centralizing SAMPLES_DB_VERSION exists to
+        // prevent, from the other side.
+        req.onblocked = () => reject(new Error('IndexedDB upgrade blocked by another open tab'));
         req.onsuccess = e => resolve(e.target.result);
         req.onerror = () => reject(req.error);
     });

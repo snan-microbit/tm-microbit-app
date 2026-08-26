@@ -7,7 +7,7 @@
      * Each iframe has its own message handler stored in `messageHandlers`.
      */
 
-    import { deriveEnumIdentifiers } from './class-name.js';
+    import { deriveEnumIdentifiers, stripUnsafeChars } from './class-name.js';
 
     const MAKECODE_URL = "https://makecode.microbit.org/v7.1.47";
 
@@ -28,15 +28,59 @@
 
     function generateTmClassesTs(classNames) {
         // Identifiers are derived and de-duplicated: a class name is user input
-        // and need not be a valid (nor unique) TypeScript identifier. Names are
-        // interpolated with JSON.stringify() so quotes and backslashes cannot
-        // break the generated file.
-        const identifiers = deriveEnumIdentifiers(classNames);
-        const enumMembers = classNames.map((name, i) => {
+        // and need not be a valid (nor unique) TypeScript identifier.
+        //
+        // Names go through stripUnsafeChars() before being interpolated:
+        // defence in depth, a no-op for well-formed input, the same guard
+        // formatUartMessage() applies at its own point of use. JSON.stringify()
+        // escapes quotes and backslashes but NOT U+2028/U+2029, which are line
+        // terminators in the ECMAScript grammar — one of them inside a name
+        // ends the `//% block=` line mid-string and the generated file stops
+        // being valid TypeScript.
+        //
+        // It used to be enough that names were normalized where they are
+        // stored. The rehydration boundary no longer guarantees that, on
+        // purpose: normalizing there would orphan the samples of an audio
+        // project, where the class name is the key the recognizer indexes them
+        // by. So each point of use guards itself.
+        const safeNames = classNames.map(stripUnsafeChars);
+        const identifiers = deriveEnumIdentifiers(safeNames);
+        const enumMembers = safeNames.map((name, i) => {
             return `    //% block=${JSON.stringify(name)}\n    ${identifiers[i]} = ${i}`;
         });
-        const arrayItems = classNames.map(n => JSON.stringify(n)).join(', ');
+        const arrayItems = safeNames.map(n => JSON.stringify(n)).join(', ');
         return `enum TMClase {\n${enumMembers.join(',\n')}\n}\nnamespace iaMachine {\n    export const _tmClaseNombres = [${arrayItems}];\n    //% blockId=tm_clase_picker\n    //% block="$clase"\n    //% blockHidden=true\n    //% shim=TD_ID\n    export function tmClasePicker(clase: TMClase): number {\n        return clase;\n    }\n}\n`;
+    }
+
+    function isPlainMakeCodeProject(value) {
+        return (
+            value !== null &&
+            typeof value === 'object' &&
+            !Array.isArray(value) &&
+            // `text` es lo que después se expande con spread: un string ahí
+            // produce un objeto de claves numéricas que se le postea al iframe.
+            (value.text == null || (typeof value.text === 'object' && !Array.isArray(value.text)))
+        );
+    }
+
+    /**
+     * Un proyecto guardado solo sirve para reabrir si trae archivos. `null`,
+     * `undefined` y `{}` son igual de vacíos: los tres tienen que caer en
+     * generateProject(), que arma el proyecto completo con su pxt.json y la
+     * dependencia de la extensión. Sin esta comprobación, un text vacío produce
+     * un proyecto de un solo archivo —el tm-classes.ts regenerado—, sin
+     * dependencias, y el panel abre un proyecto que no compila.
+     *
+     * La guarda de workspacesave sigue siendo la permisiva a propósito:
+     * rechazar ahí costaría los bloques que el docente acaba de escribir.
+     * Ésta es la del lado de lectura, donde descartar no destruye nada.
+     */
+    function hasUsableText(value) {
+        return (
+            isPlainMakeCodeProject(value) &&
+            value.text != null &&
+            Object.keys(value.text).length > 0
+        );
     }
 
     function generateProject(classNames, projectName) {
@@ -76,6 +120,17 @@
     function openMakeCode(classNames, savedProject, onSave, projectName, iframeId = 'makecodeFrame', hideSimulator = false) {
         const iframe = document.getElementById(iframeId);
         if (!iframe) return;
+
+        // savedProject sale de localStorage, que este proyecto trata como
+        // entrada no confiable. project-schema.js preserva makecodeProject tal
+        // cual a propósito (es el único campo que el docente no puede
+        // reconstruir), así que la validación de forma vive en cada lectura.
+        // Un proyecto sin archivos utilizables se ignora, no se destruye: el
+        // dato sigue en el registro para recuperarlo.
+        if (savedProject !== null && savedProject !== undefined && !hasUsableText(savedProject)) {
+            console.warn('[makecode] proyecto guardado sin archivos utilizables, se abre uno nuevo');
+            savedProject = null;
+        }
 
         // Cache params for retry
         lastCallParams[iframeId] = { classNames, savedProject, onSave, projectName, iframeId, hideSimulator };
@@ -138,7 +193,15 @@
                     );
                 }
             } else if (data.action === 'workspacesave') {
-                if (data.project && onSave) {
+                // Shape check at the point of entry. This object is stored
+                // verbatim inside the project record, and the boundary in
+                // project-schema.js deliberately does not touch it: it is the
+                // one field a teacher cannot reconstruct, so it is preserved as
+                // received rather than coerced. That makes this the place where
+                // a malformed value has to be stopped.
+                if (!isPlainMakeCodeProject(data.project)) {
+                    console.warn('[makecode] workspacesave con forma inesperada, ignorado');
+                } else if (onSave) {
                     onSave(data.project);
                 }
             }

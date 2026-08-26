@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 
 import {
     MODELS_KEY,
+    MODELS_QUARANTINE_KEY,
+    MODELS_QUARANTINE_SEEN_KEY,
     SAMPLES_DB_NAME,
+    SAMPLES_DB_VERSION,
     SAMPLES_STORE,
     imageSamplesKey,
     audioSamplesKey,
@@ -142,4 +145,32 @@ test('zero is accepted as an id', () => {
         assert.ok(build(0).endsWith('-0'));
         assert.equal(build(0), build('0'));
     }
+});
+
+test('the database version is a positive integer', () => {
+    // Bumping it is a coordinated change across the three trainers: they open
+    // the same database, and a module left behind gets VersionError.
+    assert.ok(Number.isInteger(SAMPLES_DB_VERSION));
+    assert.ok(SAMPLES_DB_VERSION >= 1);
+});
+
+test('the quarantine key derives from MODELS_KEY and is distinct from the corrupt backup', () => {
+    assert.equal(MODELS_QUARANTINE_KEY, 'ml-microbit-models-quarantine');
+    assert.ok(MODELS_QUARANTINE_KEY.startsWith(MODELS_KEY));
+    assert.notEqual(MODELS_QUARANTINE_KEY, MODELS_KEY);
+    // A fixed key, so it must not collide with any member of the timestamped
+    // corrupt-backup family.
+    assert.notEqual(MODELS_QUARANTINE_KEY, corruptBackupKey(ID));
+});
+
+test('the quarantine key is namespaced and carries no legacy prefix', () => {
+    assert.ok(MODELS_QUARANTINE_KEY.startsWith('ml-'));
+    assert.ok(!/(^|[-_])tm[-_]/.test(MODELS_QUARANTINE_KEY));
+});
+
+test('the quarantine acknowledgement key is distinct and namespaced', () => {
+    assert.equal(MODELS_QUARANTINE_SEEN_KEY, 'ml-microbit-models-quarantine-seen');
+    assert.ok(MODELS_QUARANTINE_SEEN_KEY.startsWith('ml-'));
+    assert.notEqual(MODELS_QUARANTINE_SEEN_KEY, MODELS_QUARANTINE_KEY);
+    assert.ok(!/(^|[-_])tm[-_]/.test(MODELS_QUARANTINE_SEEN_KEY));
 });

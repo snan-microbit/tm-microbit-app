@@ -9,7 +9,7 @@ import { openMakeCode, closeMakeCode } from './makecode-embed.js';
 import * as trainer from './image-trainer.js';
 import * as audioTrainer from './audio-trainer.js';
 import * as poseTrainer from './pose-trainer.js';
-import { loadModels, saveModels, addProject, deleteProject, updateProjectMakeCode, updateProjectModel } from './project-store.js';
+import { loadModels, saveModels, addProject, deleteProject, updateProjectMakeCode, updateProjectModel, getQuarantineStatus, acknowledgeQuarantine } from './project-store.js';
 import { getConfig } from './trainer-config.js';
 import { escapeHtml } from './sanitize.js';
 import {
@@ -74,11 +74,36 @@ setDisconnectCallback(resetConnectionUI);
 // ============================================
 
 async function deleteModelAndCleanup(id) {
-    await deleteProject(id, { trainer, audioTrainer, poseTrainer });
+    return deleteProject(id, { trainer, audioTrainer, poseTrainer });
 }
 
 function renderModels() {
     const models = loadModels();
+
+    const notice = document.getElementById('quarantineNotice');
+    const noticeText = document.getElementById('quarantineNoticeText');
+    const noticeDismiss = document.getElementById('quarantineNoticeDismiss');
+    if (notice && noticeText && noticeDismiss) {
+        const { count, needsNotice, persisted } = getQuarantineStatus();
+        if (needsNotice) {
+            const label = count === 1 ? 'proyecto dañado' : 'proyectos dañados';
+            // textContent, nunca innerHTML. Lo único interpolado es un número.
+            noticeText.textContent = persisted
+                ? `Encontramos ${count} ${label} que no se pudieron abrir. ` +
+                  `Los guardamos aparte por si hace falta recuperarlos: avisale al equipo del programa.`
+                : `Encontramos ${count} ${label} que no se pudieron abrir y no pudimos ` +
+                  `guardarlos todos aparte, probablemente por falta de espacio. No cierres la app ` +
+                  `y avisale al equipo del programa.`;
+            // El botón se oculta cuando la copia no está completa:
+            // acknowledgeQuarantine() se niega siempre en ese estado, así que
+            // dejarlo visible es ofrecer una acción que no puede cumplir.
+            noticeDismiss.classList.toggle('hidden', !persisted);
+            notice.classList.remove('hidden');
+        } else {
+            notice.classList.add('hidden');
+        }
+    }
+
     const modelsList = document.getElementById('modelsList');
     const emptyState = document.getElementById('emptyState');
 
@@ -110,7 +135,7 @@ function renderModels() {
             </div>
             <div class="model-card-title">${escapeHtml(model.name)}</div>
             ${model.classNames ? `<div class="model-card-classes">${model.classNames.map(c => escapeHtml(c)).join(' · ')}</div>` : ''}
-            <div class="model-card-date">${formatDate(model.createdAt)}</div>
+            <div class="model-card-date">${escapeHtml(formatDate(model.createdAt))}</div>
             <div class="model-card-actions">
                 <button class="btn-card btn-use" data-action="open" data-id="${escapeHtml(model.id)}">Abrir</button>
             </div>
@@ -137,9 +162,30 @@ function renderModels() {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (confirm('¿Eliminar este proyecto?')) {
-                await deleteModelAndCleanup(btn.dataset.id);
+                try {
+                    const { samplesDeleted } = await deleteModelAndCleanup(btn.dataset.id);
+                    if (samplesDeleted) {
+                        showToast('Proyecto eliminado', 'success');
+                    } else {
+                        // El registro salió de la lista, pero las muestras siguen
+                        // en IndexedDB. En imagen y pose son fotos de la webcam:
+                        // decir "eliminado" a secas sería falso justo en el caso
+                        // que este cambio existe para evitar.
+                        showToast(
+                            'El proyecto se eliminó, pero no pudimos borrar las fotos guardadas. ' +
+                            'Cerrá las otras pestañas y probá de nuevo.',
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    // Sin esto, un fallo dejaba la tarjeta en la lista sin
+                    // ningún mensaje: el docente apretaba "eliminar" y no pasaba
+                    // nada, y su único recurso era borrar datos del sitio, o sea
+                    // perder también todos los demás proyectos.
+                    console.error('Delete project error:', error);
+                    showToast('No se pudo eliminar el proyecto. Probá de nuevo.', 'error');
+                }
                 renderModels();
-                showToast('Proyecto eliminado', 'success');
             }
         });
     });
@@ -274,6 +320,12 @@ async function openTrainingScreen(project) {
     trainer.dispose();
     audioTrainer.dispose();
     poseTrainer.dispose();
+    // Entrada unificada a la pantalla de entrenamiento: la convención del
+    // proyecto pide la limpieza completa en cada transición. Hoy los dos caminos
+    // de entrada vienen del home y estos dos son no-ops, pero el lugar donde se
+    // espera la limpieza es acá.
+    closeMakeCode('makecodeInlineFrame');
+    disconnectMicrobit();
     document.getElementById('trainProgressText').textContent = '';
 
     trainingFacingMode = 'user';
@@ -283,24 +335,44 @@ async function openTrainingScreen(project) {
     const isAudio = project.projectType === 'audio';
     const isPose = project.projectType === 'pose';
 
+    // Un proyecto llega acá en tres estados, no dos. La frontera de
+    // rehidratación descarta localModel cuando el puntero al modelo está roto
+    // (clave de un esquema superado, source desconocido) y conserva el resto del
+    // proyecto, así que "no hay localModel" ya no significa "proyecto nuevo".
+    //
+    // Las muestras siguen en IndexedDB bajo una clave derivada del id, que nunca
+    // estuvo rota: lo que decide si hay trabajo previo son las CLASES, no el
+    // puntero al modelo. Sin esta distinción el proyecto se abre vacío y el
+    // primer entrenamiento pisa las muestras con saveSamples().
+    //
+    // El tercer estado —"necesita reentrenar"— no se puede decidir acá: también
+    // se llega a él cuando el modelo existe pero no carga, y eso solo se sabe
+    // después de intentarlo. Cada flujo lo resuelve con su propio modelLoaded.
+    const knownClassNames = project.localModel?.classNames ?? project.classNames;
+    const hasPriorWork = Array.isArray(knownClassNames) && knownClassNames.length > 0;
+
     if (isPose) {
         showToast('Cargando detector de pose...', 'info');
 
         try {
             await poseTrainer.initTrainer();
 
+            // Un modelo que no carga deja al proyecto exactamente en el estado
+            // "necesita reentrenar" que ya maneja la rama de abajo: es una
+            // TERCERA ENTRADA AL MISMO ESTADO, no un caso aparte. Mantenerla
+            // como camino propio fue lo que la desincronizó — recuperaba las
+            // clases y no las muestras, y el primer train() las pisaba.
+            let modelLoaded = false;
             if (project.localModel) {
                 try {
                     await poseTrainer.loadSavedModel(project.localModel);
+                    modelLoaded = true;
                 } catch (e) {
-                    showScreen('trainingScreen');
-                    document.getElementById('trainingCaptureSection').classList.remove('hidden');
-                    project.localModel.classNames.forEach(name => poseTrainer.addClass(name));
-                    renderTrainingClasses();
-                    await openCaptureWebcamWithSkeleton();
-                    showToast('Listo', 'success');
-                    return;
+                    console.warn('[app] No se pudo cargar el modelo guardado:', e);
                 }
+            }
+
+            if (modelLoaded) {
                 showToast('Cargando muestras anteriores...', 'info');
                 await poseTrainer.loadSamples(project.id);
                 if (poseTrainer.isTrained()) {
@@ -309,6 +381,15 @@ async function openTrainingScreen(project) {
                 }
                 showScreen('trainingScreen');
                 document.getElementById('trainingCaptureSection').classList.remove('hidden');
+            } else if (hasPriorWork) {
+                // Modelo descartado por la frontera, o presente pero no cargable.
+                // Las clases van primero: loadSamples() descarta las muestras
+                // cuyo classes[s.ci] todavía no existe.
+                showScreen('trainingScreen');
+                document.getElementById('trainingCaptureSection').classList.remove('hidden');
+                knownClassNames.forEach(name => poseTrainer.addClass(name));
+                showToast('Cargando muestras anteriores...', 'info');
+                await poseTrainer.loadSamples(project.id);
             } else {
                 showScreen('trainingScreen');
                 document.getElementById('trainingCaptureSection').classList.remove('hidden');
@@ -318,7 +399,7 @@ async function openTrainingScreen(project) {
 
             renderTrainingClasses();
             await openCaptureWebcamWithSkeleton();
-            showToast('Listo', 'success');
+            showReadyToast(!modelLoaded && hasPriorWork);
         } catch (error) {
             console.error('Pose training init error:', error);
             showToast('Error al inicializar detector de pose', 'error');
@@ -334,19 +415,35 @@ async function openTrainingScreen(project) {
         try {
             await audioTrainer.initTrainer();
 
-            if (project.localModel) {
-                project.localModel.classNames.forEach(name => audioTrainer.addClass(name));
+            // Audio carga las muestras ANTES de intentar el modelo, así que acá la
+            // unificación va al revés que en imagen y pose: la rama de trabajo
+            // previo absorbe a la del modelo. Un modelo que no carga deja al
+            // proyecto en el mismo estado "necesita reentrenar", no en uno aparte.
+            let modelLoaded = false;
+
+            if (hasPriorWork) {
+                // Las clases van primero en los tres casos, y acá más que en
+                // ningún otro: en audio el nombre de clase ES la clave con la que
+                // el recognizer indexa las muestras.
+                knownClassNames.forEach(name => audioTrainer.addClass(name));
                 showToast('Cargando muestras anteriores...', 'info');
                 await audioTrainer.loadSamples(project.id);
-                try {
-                    await audioTrainer.loadSavedModel(project.localModel);
+
+                if (project.localModel) {
+                    try {
+                        await audioTrainer.loadSavedModel(project.localModel);
+                        modelLoaded = true;
+                    } catch (e) {
+                        console.warn('[app] No se pudo cargar el modelo guardado:', e);
+                    }
+                }
+
+                if (modelLoaded) {
                     await openPredictionScreen(project);
                     return;
-                } catch (e) {
-                    // Model weights not found — show training screen for re-recording/re-training
-                    showScreen('trainingScreen');
-                    document.getElementById('trainingCaptureSection').classList.remove('hidden');
                 }
+                showScreen('trainingScreen');
+                document.getElementById('trainingCaptureSection').classList.remove('hidden');
             } else {
                 showScreen('trainingScreen');
                 document.getElementById('trainingCaptureSection').classList.remove('hidden');
@@ -357,7 +454,7 @@ async function openTrainingScreen(project) {
 
             renderTrainingClasses();
             await openAudioVisualizer();
-            showToast('Listo', 'success');
+            showReadyToast(!modelLoaded && hasPriorWork);
         } catch (error) {
             console.error('Audio training init error:', error);
             showToast('Error al iniciar el entrenador de audio', 'error');
@@ -377,18 +474,18 @@ async function openTrainingScreen(project) {
     try {
         await trainer.initTrainer();
 
+        // Tercera entrada al mismo estado: ver el comentario del flujo de pose.
+        let modelLoaded = false;
         if (project.localModel) {
             try {
                 await trainer.loadSavedModel(project.localModel);
+                modelLoaded = true;
             } catch (e) {
-                showScreen('trainingScreen');
-                document.getElementById('trainingCaptureSection').classList.remove('hidden');
-                project.localModel.classNames.forEach(name => trainer.addClass(name));
-                renderTrainingClasses();
-                openCaptureWebcam();
-                showToast('Listo', 'success');
-                return;
+                console.warn('[app] No se pudo cargar el modelo guardado:', e);
             }
+        }
+
+        if (modelLoaded) {
             showToast('Cargando muestras anteriores...', 'info');
             await trainer.loadSamples(project.id);
             if (trainer.isTrained()) {
@@ -397,15 +494,22 @@ async function openTrainingScreen(project) {
             }
             showScreen('trainingScreen');
             document.getElementById('trainingCaptureSection').classList.remove('hidden');
+        } else if (hasPriorWork) {
+            showScreen('trainingScreen');
+            document.getElementById('trainingCaptureSection').classList.remove('hidden');
+            knownClassNames.forEach(name => trainer.addClass(name));
+            showToast('Cargando muestras anteriores...', 'info');
+            await trainer.loadSamples(project.id);
         } else {
             showScreen('trainingScreen');
+            document.getElementById('trainingCaptureSection').classList.remove('hidden');
             trainer.addClass('Clase 1');
             trainer.addClass('Clase 2');
         }
 
         renderTrainingClasses();
         openCaptureWebcam();
-        showToast('Listo', 'success');
+        showReadyToast(!modelLoaded && hasPriorWork);
     } catch (error) {
         console.error('Training init error:', error);
         showToast('Error al inicializar', 'error');
@@ -1470,8 +1574,29 @@ function updateNameCounter(input) {
     counter.classList.toggle('at-limit', used >= MAX_CLASS_NAME_BYTES);
 }
 
+/**
+ * Un proyecto cuyo puntero al modelo se descartó vuelve como no entrenado
+ * aunque el docente lo haya entrenado. Sin decirlo, la pantalla parece haber
+ * perdido el trabajo; el mensaje es la única señal de que las muestras están y
+ * de qué falta hacer.
+ */
+function showReadyToast(needsRetrain) {
+    if (needsRetrain) {
+        showToast('Recuperamos tus clases y tus muestras. Entrená de nuevo para volver a usar el modelo.', 'info');
+    } else {
+        showToast('Listo', 'success');
+    }
+}
+
 function formatDate(isoString) {
+    // La frontera preserva createdAt con el tipo que tenga, así que acá puede
+    // llegar null, 0 o false — que NO dan Invalid Date, dan la época, y la card
+    // mostraría "1 ene 1970". Solo un string tiene sentido como fecha guardada.
+    if (typeof isoString !== 'string') return '';
+
     const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return '';
+
     const now = new Date();
     const days = Math.floor((now - date) / (1000 * 60 * 60 * 24));
 
@@ -1496,6 +1621,18 @@ function showToast(message, type = 'info') {
 // ============================================
 // EVENT LISTENERS
 // ============================================
+
+// Listener de nivel superior, no dentro de renderModels(): esa función corre
+// muchas veces por sesión y registraría un handler nuevo en cada render.
+document.getElementById('quarantineNoticeDismiss').addEventListener('click', () => {
+    if (!acknowledgeQuarantine()) {
+        // Devuelve false cuando la cuarentena no está persistida o el acuse no
+        // se pudo escribir. En los dos casos apagar el aviso sería mentir.
+        showToast('No pudimos marcar el aviso como visto. Avisale al equipo del programa.', 'error');
+        return;
+    }
+    renderModels();
+});
 
 // Home: open type selection modal
 document.getElementById('newModelBtn').addEventListener('click', () => {
