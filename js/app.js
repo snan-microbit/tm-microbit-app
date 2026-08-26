@@ -1247,10 +1247,18 @@ function wireTrainingClassEvents(container, config, t) {
                     }
                 };
 
-                for (let n = 1; n <= 10; n++) {
-                    if (batchRecordingCancelled) break;
-                    await recordWithCountdown(ci, n, 10);
-                    if (batchRecordingCancelled) break;
+                // La primera clase de audio es siempre el ruido de fondo
+                // (requisito de speech-commands). Es la única donde grabar de
+                // corrido tiene sentido: en las demás la regresiva es lo que le
+                // da tiempo a la docente a pronunciar la palabra.
+                if (ci === 0) {
+                    await recordBatchContinuous(ci, 10);
+                } else {
+                    for (let n = 1; n <= 10; n++) {
+                        if (batchRecordingCancelled) break;
+                        await recordWithCountdown(ci, n, 10);
+                        if (batchRecordingCancelled) break;
+                    }
                 }
 
                 cancelBtn.classList.remove('visible');
@@ -1294,6 +1302,59 @@ function wireTrainingClassEvents(container, config, t) {
             });
         });
     }
+}
+
+/**
+ * Graba varias muestras seguidas con UNA sola regresiva al principio.
+ *
+ * Para la clase de ruido de fondo la regresiva entre muestra y muestra no
+ * aporta nada —no hay nada que pronunciar— y convierte diez muestras en unos
+ * cuarenta segundos de espera. La regresiva inicial sí importa: le da a quien
+ * graba unos segundos para dejar de hablar, así la primera muestra captura la
+ * sala como suena y no el click del botón.
+ */
+async function recordBatchContinuous(classIndex, total) {
+    const modal = document.getElementById('audioRecordModal');
+    const numberEl = document.getElementById('countdownNumber');
+    const labelEl = document.getElementById('countdownLabel');
+
+    modal.classList.remove('hidden');
+
+    for (let i = 3; i >= 1; i--) {
+        if (batchRecordingCancelled) break;
+        numberEl.className = 'countdown-number';
+        numberEl.textContent = i;
+        labelEl.textContent = 'Silencio, por favor...';
+        void numberEl.offsetWidth;
+        numberEl.classList.add('pulse');
+        await new Promise(r => setTimeout(r, 800));
+    }
+
+    if (!batchRecordingCancelled) {
+        numberEl.className = 'countdown-number recording';
+        numberEl.textContent = '🔴';
+    }
+
+    for (let n = 1; n <= total; n++) {
+        if (batchRecordingCancelled) break;
+        labelEl.textContent = `Ruido de fondo ${n}/${total}`;
+        try {
+            await audioTrainer.recordSample(classIndex);
+        } catch (e) {
+            console.error('Recording error:', e);
+            break;
+        }
+    }
+
+    numberEl.className = 'countdown-number done';
+    numberEl.textContent = '✓';
+    labelEl.textContent = 'Listo';
+    await new Promise(r => setTimeout(r, 400));
+
+    modal.classList.add('hidden');
+
+    updateClassUI(classIndex);
+    updateTrainButton();
 }
 
 async function recordWithCountdown(classIndex, current = null, total = null) {

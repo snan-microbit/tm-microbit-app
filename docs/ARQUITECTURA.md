@@ -141,7 +141,7 @@ El modelo base está self-hosteado en `vendor/speech-commands/browser_fft/18w/` 
 
 **Thumbnails y muestras rehidratadas.** `rebuildThumbs()` es el único punto que regenera `classThumbs` a partir de los ejemplos del recognizer (lo usan `train()` y `loadSamples()`), y filtra con `isValidSpectrogram()` de `sanitize.js`: los espectrogramas pueden venir de IndexedDB, que el proyecto trata como entrada de usuario, y un `frameSize` corrupto dimensionaría mal el canvas y cortaría el render a la mitad. En `loadSamples()` la llamada va dentro de su propio `try/catch`, separado del de `loadExamples()`.
 
-Exporta: `initTrainer()`, `addClass(name)`, `removeClass(index)`, `renameClass(index, newName)` (lanza si la clase tiene muestras), `clearSamples(index)` (⚠ borra las muestras de **todas** las clases — limitación de `clearExamples()` de la librería), `getClasses()`, `getClassNames()`, `getTotalClasses()`, `getSamples(classIndex)`, `deleteSample(classIndex, sampleIndex)`, `recordSample(classIndex)` (~1 s), `startContinuousRecording(classIndex)` / `stopContinuousRecording()` (sin uso actual desde `app.js`), `getIsRecording()`, `train(onProgress)`, `startListening(callback)`, `stopListening()`, `isListening()`, `startVisualizer(canvasElement)`, `stopVisualizer()`, `saveModel(projectId)`, `loadSavedModel(localModelInfo)`, `deleteModel(storageKey)`, `saveSamples(projectId)`, `loadSamples(projectId)`, `deleteSamplesDB(projectId)`, `isTrained()`, `dispose()`.
+Exporta: `initTrainer()`, `addClass(name)`, `removeClass(index)`, `renameClass(index, newName)` (lanza si la clase tiene muestras), `clearSamples(index)` (borra solo las muestras de esa clase, con `removeExample(uid)` en bucle — `clearExamples()` de speech-commands no toma argumentos y arrasa el dataset entero, así que no se usa acá), `getClasses()`, `getClassNames()`, `getTotalClasses()`, `getSamples(classIndex)`, `deleteSample(classIndex, sampleIndex)`, `recordSample(classIndex)` (~1 s), `getIsRecording()`, `train(onProgress)`, `startListening(callback)`, `stopListening()`, `isListening()`, `startVisualizer(canvasElement)`, `stopVisualizer()`, `saveModel(projectId)`, `loadSavedModel(localModelInfo)`, `deleteModel(storageKey)`, `saveSamples(projectId)`, `loadSamples(projectId)`, `deleteSamplesDB(projectId)`, `isTrained()`, `dispose()`.
 
 El nombre de la base IndexedDB, el del object store y las claves de muestras (`ml-audio-samples-<id>`) y de modelo (`ml-audio-local-<id>`) vienen de `storage-keys.js`; el módulo no construye ninguna con literales. No confundirlas con `transferName`, que nombra al recognizer de transfer dentro del registro en memoria de la librería y no se persiste.
 
@@ -243,6 +243,7 @@ renderModels() → openTrainingScreen(project)
 btn Capturar → trainer.captureOne(ci, canvas)
 btn Grabar   → trainer.startCapture(ci, canvas) … trainer.stopCapture()
     // audio: recordWithCountdown(ci) → audioTrainer.recordSample(ci) (batch de 10 en loop)
+    // audio, clase 0 (ruido de fondo): recordBatchContinuous(ci, 10) → una sola regresiva y las 10 muestras seguidas
 
 [click "Entrenar"]  (habilitado con ≥2 clases y ≥8 muestras por clase)
 trainBtn → trainer.saveSamples(id) → trainer.train(onProgress)
@@ -325,7 +326,7 @@ Todos los nombres persistidos se construyen en `js/storage-keys.js`: las dos cla
 
 `storageKey` se persiste además como string dentro de cada proyecto, y hay dos caminos que lo tratan distinto: `saveModel()` de cada trainer lo **reconstruye** desde el `projectId` en cada entrenamiento, mientras que `loadSavedModel()` y `deleteProject()` leen el string **verbatim** del dato guardado. Por eso un cambio de esquema de claves rompe los proyectos ya guardados aunque el código sea consistente: el valor viejo persiste apuntando a un registro que ya no existe. Desde la frontera de rehidratación ese valor ya no llega crudo al código: `canonicalizeProject()` acepta solo el `storageKey` que produciría el constructor vigente para ese id. **Un valor que no corresponde ya no cuesta el proyecto: se descarta `localModel` y el proyecto vuelve como no entrenado**, con su nombre, sus clases y sus bloques de MakeCode intactos, listo para reentrenar. Esa es la resolución vigente para los proyectos anteriores al rename `tm-` → `ml-` (que se hizo sin migración), y es mejor que el comportamiento desplegado hasta v8.0, donde el proyecto se listaba pero el modelo no cargaba nunca. Ya no hace falta borrar datos del sitio.
 
-Además, el Service Worker mantiene el Cache Storage `ml-microbit-v8.1` con el app shell y todo `vendor/`.
+Además, el Service Worker mantiene el Cache Storage `ml-microbit-v8.2` con el app shell y todo `vendor/`.
 
 ## 5. Protocolo BLE
 
@@ -370,7 +371,7 @@ Ejemplos concretos:
 
 ## 7. Estado actual
 
-**Última actualización:** 2026-08-25
+**Última actualización:** 2026-08-26
 
 **Features completas:** tres trainers (imagen, audio, pose) con captura, entrenamiento, preview en vivo y persistencia; conexión BLE con keep-alive y envío de la clase ganadora; panel MakeCode inline con proyecto generado, guardado automático y fallback offline; biblioteca de proyectos (crear/abrir/borrar); PWA instalable y offline; cambio de cámara frontal/trasera; modo expandido de predicción; suites de tests (protocolo UART, sanitización, nombres de clase, claves de almacenamiento y frontera de rehidratación con fixture de regresión) con CI (tests + consistencia del precache + checksums de todo vendor/ con verificación de cobertura).
 
@@ -405,10 +406,8 @@ Ejemplos concretos:
 - **`app.js` vuelca `error.message` crudo a los toasts.** Los mensajes de error internos están en inglés por convención del proyecto, así que cualquier fallo interno le llega al docente en inglés y con vocabulario técnico. Corresponde separar el mensaje de usuario del mensaje de diagnóstico.
 - Cobertura de tests limitada al protocolo UART, `sanitize.js`, `class-name.js`, `storage-keys.js` y `project-schema.js`. Fases futuras previstas: operaciones sobre clases/muestras y ordenamiento de predicciones (requieren extraer esa lógica a módulos puros, mismo patrón que `protocol.js`).
 - `getClassColor()` en `app.js` ignora el índice y devuelve siempre el primer color: la paleta `CLASS_COLORS` de 6 colores está definida pero todas las clases se pintan iguales (decisión o regresión — a confirmar antes de "arreglarlo").
-- En `audio-trainer.js`, `clearSamples()` borra las muestras de **todas** las clases (limitación de `clearExamples()` de speech-commands); la UI no lo advierte.
 - **`vendor/CHECKSUMS.txt` prueba inmutabilidad, no procedencia** (auditoría del 2026-08-13). Los hashes se calcularon sobre lo que se descargó, así que el CI verifica "estos bytes no cambiaron desde el commit", no "estos bytes son los del bucket oficial"; ningún archivo del repo registra de qué URL salió cada artefacto. Mitigación propuesta y **pospuesta**: `vendor/PROVENANCE.md` con URL, fecha y hash upstream de cada artefacto, más un verificador opcional fuera de CI.
 - `saveModel()` de audio puede terminar sin persistir pesos (solo deja warning en consola) si ni `transfer.save()` ni el modelo interno están disponibles; el proyecto queda dependiente de re-entrenar desde muestras, **que ahora se recuperan solas**: un modelo que no carga entra por la misma rama que un `localModel` descartado, así que las clases y las muestras vuelven y el reentrenamiento cuesta un click. Sigue siendo un bug —el modelo no queda persistido— pero ya no cuesta las muestras.
-- `startContinuousRecording()`/`stopContinuousRecording()` de audio están exportadas pero sin uso desde `app.js` (el batch usa `recordSample()` en loop con countdown).
 - `js/tm-import/` archivado con imports que no resuelven en su ubicación actual (esperado; ver su README para re-habilitar).
 - El botón `newModelBtn` del home está `display:none` (reemplazado por la card "Nuevo Proyecto"); el markup sigue en `index.html`.
 - **Conexión USB intermitente en el panel MakeCode embebido** (observado 2026-08-20): al descargar a la placa desde el iframe, la conexión WebUSB falla y a veces anda al reintentar. El mismo comportamiento se reproduce en el MakeCode oficial fuera de la app, así que la causa es upstream y no de la integración por iframe. Sin diagnóstico ni issue abierto; pendiente de investigar.
