@@ -670,11 +670,30 @@ async function loadSavedModel(localModelInfo) {
 }
 
 async function saveSamples(projectId) {
+    // countExamples() es la fuente de verdad del recognizer y tira cuando el
+    // dataset esta vacio, que es justamente el caso que hay que distinguir.
+    let total = 0;
+    try {
+        const counts = transfer.countExamples();
+        total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+    } catch (e) {
+        total = 0;
+    }
+
+    // Sin ejemplos se borra la clave, no se deja la version anterior: con
+    // guardado automatico lo guardado tiene que reflejar lo que hay en memoria.
+    if (total === 0) {
+        await idbDelete(audioSamplesKey(projectId));
+        return;
+    }
+
     let serialized;
     try {
         serialized = transfer.serializeExamples();
     } catch (e) {
-        console.warn('No examples to serialize:', e);
+        // Hay ejemplos contados pero la serializacion fallo: no se toca lo
+        // guardado, que es mejor que reemplazarlo por nada.
+        console.warn('No se pudieron serializar las muestras de audio:', e);
         return;
     }
     await idbPut(audioSamplesKey(projectId), serialized);
@@ -682,18 +701,25 @@ async function saveSamples(projectId) {
 
 async function loadSamples(projectId) {
     const serialized = await idbGet(audioSamplesKey(projectId));
-    if (!serialized) return;
+    if (!serialized) return 0;
     try {
         transfer.loadExamples(serialized, false);
     } catch (e) {
         console.warn('Could not load audio samples:', e);
-        return;
+        return 0;
     }
 
     try {
         rebuildThumbs();
     } catch (e) {
         console.warn('Could not rebuild audio thumbnails:', e);
+    }
+
+    try {
+        const counts = transfer.countExamples();
+        return Object.values(counts).reduce((sum, n) => sum + n, 0);
+    } catch (e) {
+        return 0;
     }
 }
 

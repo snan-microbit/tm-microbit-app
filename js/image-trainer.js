@@ -409,7 +409,7 @@ async function saveSamples(projectId) {
 
 async function loadSamples(projectId) {
     const stored = await idbGet(imageSamplesKey(projectId));
-    if (!stored?.length) return;
+    if (!stored?.length) return 0;
 
     // Reset in-memory samples before loading to avoid duplication on repeated calls.
     // Dispose tensors first to prevent WebGL memory leaks. In the current flow this
@@ -425,6 +425,7 @@ async function loadSamples(projectId) {
     loadCanvas.width = 224;
     loadCanvas.height = 224;
 
+    let loaded = 0;
     for (const s of stored) {
         // IndexedDB is user-modifiable: skip records whose shape or data
         // URLs don't match what saveSamples() writes.
@@ -448,7 +449,9 @@ async function loadSamples(projectId) {
         );
         classes[s.ci].samples.push({ tensor, thumb: s.thumb, img224: s.img224 });
         classes[s.ci].count++;
+        loaded++;
     }
+    return loaded;
 }
 
 async function deleteSamplesDB(projectId) {

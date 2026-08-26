@@ -485,3 +485,23 @@ export function updateProjectModel(id, localModelInfo) {
     }
     return null;
 }
+
+/**
+ * Persiste los nombres de clase de un proyecto sin tocar su modelo.
+ *
+ * Hasta ahora classNames solo llegaba al registro por updateProjectModel(),
+ * o sea después de entrenar. Un proyecto con clases armadas y sin entrenar no
+ * dejaba rastro, y al reabrirlo la app lo trataba como nuevo: las muestras
+ * guardadas quedaban huérfanas y el primer train() las pisaba.
+ *
+ * Es aditivo sobre la forma canónica: classNames en la raíz ya existe y la
+ * frontera ya lo preserva cuando no hay modelo. No cambia PROJECT_SCHEMA_VERSION.
+ */
+export function updateProjectClassNames(id, classNames) {
+    const models = loadModels();
+    const project = models.find(m => m.id === id);
+    if (!project) return null;
+    project.classNames = classNames.slice();
+    saveModels(models);
+    return project;
+}
