@@ -1612,11 +1612,34 @@ function closePreviewModal() {
 // UTILITIES
 // ============================================
 
+/**
+ * Fija el ancho del input al de su contenido, midiendo el texto en un span
+ * invisible.
+ *
+ * Las propiedades tipográficas se copian del propio input con
+ * getComputedStyle(): estaban hardcodeadas y no coincidían con el CSS
+ * (0.875rem/600 contra 0.95rem/700), así que el ancho calculado quedaba corto
+ * en proporción al largo del texto y a partir de cierto largo recortaba la
+ * última letra. Copiarlas mantiene la medición correcta aunque el CSS cambie.
+ *
+ * Se copian una por una y no con el atajo `font`: getComputedStyle().font
+ * devuelve cadena vacía en algunos navegadores cuando la familia es una lista.
+ */
 function autoSizeInput(input) {
+    const cs = getComputedStyle(input);
+
     const measure = document.createElement('span');
-    measure.style.cssText = 'visibility:hidden;position:absolute;white-space:pre;font:inherit;font-size:0.875rem;font-weight:600;padding:0;';
+    measure.style.cssText = 'visibility:hidden;position:absolute;white-space:pre;padding:0;border:0;';
+    measure.style.fontFamily = cs.fontFamily;
+    measure.style.fontSize = cs.fontSize;
+    measure.style.fontWeight = cs.fontWeight;
+    measure.style.fontStyle = cs.fontStyle;
+    measure.style.letterSpacing = cs.letterSpacing;
+
     document.body.appendChild(measure);
     measure.textContent = input.value || input.placeholder || ' ';
+    // El +4 deja lugar para el redondeo de offsetWidth y el caret. Ahora es un
+    // margen de holgura y no una compensación: la medición ya es correcta.
     input.style.width = (measure.offsetWidth + 4) + 'px';
     document.body.removeChild(measure);
 }
