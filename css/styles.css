@@ -2344,3 +2344,58 @@ button, a, input {
         gap: 8px;
     }
 }
+
+/* Aviso de proyectos que la frontera de rehidratación no pudo abrir */
+.quarantine-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border-left: 4px solid #e0a800;
+    background: #fff8e1;
+    color: #5c4600;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.quarantine-notice > span {
+    flex: 1 1 240px;
+}
+
+.quarantine-notice-dismiss {
+    flex: 0 0 auto;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 16px;
+    border: 1px solid #b8860b;
+    border-radius: 8px;
+    background: transparent;
+    color: #5c4600;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.quarantine-notice-dismiss:hover {
+    background: rgba(184, 134, 11, 0.12);
+}
+
+/* No hay una regla .hidden global: cada componente define la suya. */
+.quarantine-notice-dismiss.hidden {
+    display: none;
+}
+
+/* No hay una regla .hidden global: cada componente define la suya. */
+.quarantine-notice.hidden {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .quarantine-notice {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+}

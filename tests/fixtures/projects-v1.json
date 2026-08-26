@@ -1,0 +1,155 @@
+[
+  {
+    "id": "1787332645474",
+    "name": "Pose",
+    "projectType": "pose",
+    "createdAt": "2026-08-21T17:17:25.474Z",
+    "lastUsed": "2026-08-21T22:16:58.649Z",
+    "makecodeProject": {
+      "header": {
+        "target": "microbit",
+        "targetVersion": "7.1.47",
+        "name": "Pose",
+        "meta": {},
+        "editor": "blocksprj",
+        "pubId": "",
+        "pubCurrent": false,
+        "_rev": null,
+        "id": "0e5aefab-56c3-4ce8-725d-3a045c2fe1d3",
+        "recentUse": 1787350619,
+        "modificationTime": 1787350619,
+        "cloudUserId": null,
+        "cloudCurrent": false,
+        "cloudVersion": null,
+        "cloudLastSyncTime": 0,
+        "isDeleted": false,
+        "githubCurrent": false,
+        "saveId": null
+      },
+      "text": {
+        "main.blocks": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><variables></variables><block type=\"ia_on_class_threshold\" x=\"203\" y=\"53\"><value name=\"clase\"><shadow type=\"tm_clase_picker\"><field name=\"clase\">TMClase.Clase_1</field></shadow></value><value name=\"umbral\"><shadow type=\"math_number_minmax\"><mutation min=\"0\" max=\"100\" label=\"Umbral\" precision=\"0\"></mutation><field name=\"SLIDER\">80</field></shadow></value><statement name=\"HANDLER\"><block type=\"device_show_number\"><value name=\"number\"><shadow type=\"math_number\"><field name=\"NUM\">0</field></shadow></value></block></statement></block><block type=\"ia_on_class_threshold\" x=\"106\" y=\"220\"><value name=\"clase\"><shadow type=\"tm_clase_picker\"><field name=\"clase\">TMClase.Clase_2</field></shadow></value><value name=\"umbral\"><shadow type=\"math_number_minmax\"><mutation min=\"0\" max=\"100\" label=\"Umbral\" precision=\"0\"></mutation><field name=\"SLIDER\">80</field></shadow></value><statement name=\"HANDLER\"><block type=\"basic_show_icon\"><field name=\"i\">IconNames.Heart</field></block></statement></block></xml>",
+        "main.ts": "iaMachine.alDetectarClase(TMClase.Clase_2, 80, function () {\n    basic.showIcon(IconNames.Heart)\n})\niaMachine.alDetectarClase(TMClase.Clase_1, 80, function () {\n    basic.showNumber(0)\n})\n",
+        "tm-classes.ts": "enum TMClase {\n    //% block=\"Clase 1\"\n    Clase_1 = 0,\n    //% block=\"Clase 2\"\n    Clase_2 = 1\n}\nnamespace iaMachine {\n    export const _tmClaseNombres = [\"Clase 1\", \"Clase 2\"];\n    //% blockId=tm_clase_picker\n    //% block=\"$clase\"\n    //% blockHidden=true\n    //% shim=TD_ID\n    export function tmClasePicker(clase: TMClase): number {\n        return clase;\n    }\n}\n",
+        "README.md": " ",
+        "pxt.json": "{\n    \"name\": \"Pose\",\n    \"description\": \"Proyecto con ML - micro:bit\",\n    \"dependencies\": {\n        \"core\": \"*\",\n        \"bluetooth\": \"*\",\n        \"pxt-tm-microbit-link\": \"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\",\n        \"microphone\": \"*\"\n    },\n    \"files\": [\n        \"main.blocks\",\n        \"main.ts\",\n        \"tm-classes.ts\",\n        \"README.md\"\n    ],\n    \"yotta\": {\n        \"config\": {\n            \"microbit-dal\": {\n                \"bluetooth\": {\n                    \"open\": 1\n                }\n            }\n        }\n    }\n}\n",
+        "_history": "{\"entries\":[{\"timestamp\":1787350607723,\"editorVersion\":\"7.1.47\",\"changes\":[{\"type\":\"edited\",\"filename\":\"main.blocks\",\"patch\":[{\"start1\":0,\"length1\":1053,\"diffs\":[[1,\"<xml xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n  <variables></variables>\\n</xml>\"]]}]},{\"type\":\"edited\",\"filename\":\"main.ts\",\"patch\":[{\"start1\":0,\"length1\":188,\"diffs\":[[1,\"// Programá tu micro:bit acá\\n\"]]}]},{\"type\":\"edited\",\"filename\":\"pxt.json\",\"patch\":[{\"start1\":141,\"length1\":147,\"diffs\":[[1,\"        \\\"pxt-tm-microbit-link\\\": \\\"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\\\"\\n\"]]},{\"start1\":551,\"length1\":2,\"diffs\":[[1,\"}\"]]}]}]}],\"snapshots\":[{\"timestamp\":1787350607722,\"editorVersion\":\"7.1.47\",\"text\":{\"main.blocks\":\"<xml xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n  <variables></variables>\\n</xml>\",\"main.ts\":\"// Programá tu micro:bit acá\\n\",\"tm-classes.ts\":\"enum TMClase {\\n    //% block=\\\"Clase 1\\\"\\n    Clase_1 = 0,\\n    //% block=\\\"Clase 2\\\"\\n    Clase_2 = 1\\n}\\nnamespace iaMachine {\\n    export const _tmClaseNombres = [\\\"Clase 1\\\", \\\"Clase 2\\\"];\\n    //% blockId=tm_clase_picker\\n    //% block=\\\"$clase\\\"\\n    //% blockHidden=true\\n    //% shim=TD_ID\\n    export function tmClasePicker(clase: TMClase): number {\\n        return clase;\\n    }\\n}\\n\",\"README.md\":\" \",\"pxt.json\":\"{\\n    \\\"name\\\": \\\"Pose\\\",\\n    \\\"description\\\": \\\"Proyecto con ML - micro:bit\\\",\\n    \\\"dependencies\\\": {\\n        \\\"core\\\": \\\"*\\\",\\n        \\\"bluetooth\\\": \\\"*\\\",\\n        \\\"pxt-tm-microbit-link\\\": \\\"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\\\"\\n    },\\n    \\\"files\\\": [\\n        \\\"main.blocks\\\",\\n        \\\"main.ts\\\",\\n        \\\"tm-classes.ts\\\",\\n        \\\"README.md\\\"\\n    ],\\n    \\\"yotta\\\": {\\n        \\\"config\\\": {\\n            \\\"microbit-dal\\\": {\\n                \\\"bluetooth\\\": {\\n                    \\\"open\\\": 1\\n                }\\n            }\\n        }\\n    }\\n}\"}}],\"shares\":[],\"lastSaveTime\":1787350618646}"
+      }
+    },
+    "localModel": {
+      "source": "local-pose",
+      "storageKey": "ml-pose-local-1787332645474",
+      "classNames": [
+        "Clase 1",
+        "Clase 2"
+      ],
+      "trainedAt": "2026-08-21T22:07:48.544Z"
+    },
+    "classNames": [
+      "Clase 1",
+      "Clase 2"
+    ]
+  },
+  {
+    "id": "1787332639667",
+    "name": "Audio",
+    "projectType": "audio",
+    "createdAt": "2026-08-21T17:17:19.667Z",
+    "lastUsed": "2026-08-21T22:17:49.062Z",
+    "makecodeProject": {
+      "header": {
+        "target": "microbit",
+        "targetVersion": "7.1.47",
+        "name": "Audio",
+        "meta": {},
+        "editor": "blocksprj",
+        "pubId": "",
+        "pubCurrent": false,
+        "_rev": null,
+        "id": "064dbc87-f86a-41ef-f8db-640ad6fce3fc",
+        "recentUse": 1787350669,
+        "modificationTime": 1787350669,
+        "cloudUserId": null,
+        "cloudCurrent": false,
+        "cloudVersion": null,
+        "cloudLastSyncTime": 0,
+        "isDeleted": false,
+        "githubCurrent": false,
+        "saveId": null
+      },
+      "text": {
+        "main.blocks": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><variables></variables></xml>",
+        "main.ts": "\n",
+        "tm-classes.ts": "enum TMClase {\n    //% block=\"Ruido de fondo\"\n    Ruido_de_fondo = 0,\n    //% block=\"Clase 1\"\n    Clase_1 = 1,\n    //% block=\"Clase 2\"\n    Clase_2 = 2\n}\nnamespace iaMachine {\n    export const _tmClaseNombres = [\"Ruido de fondo\", \"Clase 1\", \"Clase 2\"];\n    //% blockId=tm_clase_picker\n    //% block=\"$clase\"\n    //% blockHidden=true\n    //% shim=TD_ID\n    export function tmClasePicker(clase: TMClase): number {\n        return clase;\n    }\n}\n",
+        "README.md": " ",
+        "pxt.json": "{\n    \"name\": \"Audio\",\n    \"description\": \"Proyecto con ML - micro:bit\",\n    \"dependencies\": {\n        \"core\": \"*\",\n        \"bluetooth\": \"*\",\n        \"pxt-tm-microbit-link\": \"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\",\n        \"microphone\": \"*\"\n    },\n    \"files\": [\n        \"main.blocks\",\n        \"main.ts\",\n        \"tm-classes.ts\",\n        \"README.md\"\n    ],\n    \"yotta\": {\n        \"config\": {\n            \"microbit-dal\": {\n                \"bluetooth\": {\n                    \"open\": 1\n                }\n            }\n        }\n    }\n}\n",
+        "_history": "{\"entries\":[{\"timestamp\":1787350667999,\"editorVersion\":\"7.1.47\",\"changes\":[{\"type\":\"edited\",\"filename\":\"main.blocks\",\"patch\":[{\"start1\":0,\"length1\":84,\"diffs\":[[1,\"<xml xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n  <variables></variables>\\n</xml>\"]]}]},{\"type\":\"edited\",\"filename\":\"main.ts\",\"patch\":[{\"start1\":0,\"length1\":1,\"diffs\":[[1,\"// Programá tu micro:bit acá\\n\"]]}]},{\"type\":\"edited\",\"filename\":\"pxt.json\",\"patch\":[{\"start1\":142,\"length1\":147,\"diffs\":[[1,\"        \\\"pxt-tm-microbit-link\\\": \\\"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\\\"\\n\"]]},{\"start1\":552,\"length1\":2,\"diffs\":[[1,\"}\"]]}]}]}],\"snapshots\":[{\"timestamp\":1787350667998,\"editorVersion\":\"7.1.47\",\"text\":{\"main.blocks\":\"<xml xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n  <variables></variables>\\n</xml>\",\"main.ts\":\"// Programá tu micro:bit acá\\n\",\"tm-classes.ts\":\"enum TMClase {\\n    //% block=\\\"Ruido de fondo\\\"\\n    Ruido_de_fondo = 0,\\n    //% block=\\\"Clase 1\\\"\\n    Clase_1 = 1,\\n    //% block=\\\"Clase 2\\\"\\n    Clase_2 = 2\\n}\\nnamespace iaMachine {\\n    export const _tmClaseNombres = [\\\"Ruido de fondo\\\", \\\"Clase 1\\\", \\\"Clase 2\\\"];\\n    //% blockId=tm_clase_picker\\n    //% block=\\\"$clase\\\"\\n    //% blockHidden=true\\n    //% shim=TD_ID\\n    export function tmClasePicker(clase: TMClase): number {\\n        return clase;\\n    }\\n}\\n\",\"README.md\":\" \",\"pxt.json\":\"{\\n    \\\"name\\\": \\\"Audio\\\",\\n    \\\"description\\\": \\\"Proyecto con ML - micro:bit\\\",\\n    \\\"dependencies\\\": {\\n        \\\"core\\\": \\\"*\\\",\\n        \\\"bluetooth\\\": \\\"*\\\",\\n        \\\"pxt-tm-microbit-link\\\": \\\"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\\\"\\n    },\\n    \\\"files\\\": [\\n        \\\"main.blocks\\\",\\n        \\\"main.ts\\\",\\n        \\\"tm-classes.ts\\\",\\n        \\\"README.md\\\"\\n    ],\\n    \\\"yotta\\\": {\\n        \\\"config\\\": {\\n            \\\"microbit-dal\\\": {\\n                \\\"bluetooth\\\": {\\n                    \\\"open\\\": 1\\n                }\\n            }\\n        }\\n    }\\n}\"}}],\"shares\":[],\"lastSaveTime\":1787350669060}"
+      }
+    },
+    "localModel": {
+      "source": "local-audio",
+      "storageKey": "ml-audio-local-1787332639667",
+      "classNames": [
+        "Ruido de fondo",
+        "Clase 1",
+        "Clase 2"
+      ],
+      "trainedAt": "2026-08-21T22:09:47.939Z"
+    },
+    "classNames": [
+      "Ruido de fondo",
+      "Clase 1",
+      "Clase 2"
+    ]
+  },
+  {
+    "id": "1787332631870",
+    "name": "Img",
+    "projectType": "image",
+    "createdAt": "2026-08-21T17:17:11.870Z",
+    "lastUsed": "2026-08-21T22:18:21.111Z",
+    "makecodeProject": {
+      "header": {
+        "target": "microbit",
+        "targetVersion": "7.1.47",
+        "name": "Img",
+        "meta": {},
+        "editor": "blocksprj",
+        "pubId": "",
+        "pubCurrent": false,
+        "_rev": null,
+        "id": "8a048743-18f2-4162-a22f-45248ce43795",
+        "recentUse": 1787350701,
+        "modificationTime": 1787350701,
+        "cloudUserId": null,
+        "cloudCurrent": false,
+        "cloudVersion": null,
+        "cloudLastSyncTime": 0,
+        "isDeleted": false,
+        "githubCurrent": false,
+        "saveId": null
+      },
+      "text": {
+        "main.blocks": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><variables></variables><block type=\"ia_on_any_class\" x=\"103\" y=\"133\"><value name=\"umbral\"><shadow type=\"math_number_minmax\"><mutation min=\"0\" max=\"100\" label=\"Umbral\" precision=\"0\"></mutation><field name=\"SLIDER\">80</field></shadow></value><statement name=\"HANDLER\"><block type=\"device_clear_display\"></block></statement></block><block type=\"ia_on_disconnected\" x=\"147\" y=\"422\"><statement name=\"HANDLER\"><block type=\"device_show_number\"><value name=\"number\"><shadow type=\"math_number\"><field name=\"NUM\">0</field></shadow></value></block></statement></block></xml>",
+        "main.ts": "iaMachine.alDetectarCualquierClase(80, function () {\n    basic.clearScreen()\n})\niaMachine.alDesconectar(function () {\n    basic.showNumber(0)\n})\n",
+        "tm-classes.ts": "enum TMClase {\n    //% block=\"Clase 1\"\n    Clase_1 = 0,\n    //% block=\"Clase 2\"\n    Clase_2 = 1\n}\nnamespace iaMachine {\n    export const _tmClaseNombres = [\"Clase 1\", \"Clase 2\"];\n    //% blockId=tm_clase_picker\n    //% block=\"$clase\"\n    //% blockHidden=true\n    //% shim=TD_ID\n    export function tmClasePicker(clase: TMClase): number {\n        return clase;\n    }\n}\n",
+        "README.md": " ",
+        "pxt.json": "{\n    \"name\": \"Img\",\n    \"description\": \"Proyecto con ML - micro:bit\",\n    \"dependencies\": {\n        \"core\": \"*\",\n        \"bluetooth\": \"*\",\n        \"pxt-tm-microbit-link\": \"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\",\n        \"microphone\": \"*\"\n    },\n    \"files\": [\n        \"main.blocks\",\n        \"main.ts\",\n        \"tm-classes.ts\",\n        \"README.md\"\n    ],\n    \"yotta\": {\n        \"config\": {\n            \"microbit-dal\": {\n                \"bluetooth\": {\n                    \"open\": 1\n                }\n            }\n        }\n    }\n}\n",
+        "_history": "{\"entries\":[{\"timestamp\":1787350690217,\"editorVersion\":\"7.1.47\",\"changes\":[{\"type\":\"edited\",\"filename\":\"main.blocks\",\"patch\":[{\"start1\":0,\"length1\":618,\"diffs\":[[1,\"<xml xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n  <variables></variables>\\n</xml>\"]]}]},{\"type\":\"edited\",\"filename\":\"main.ts\",\"patch\":[{\"start1\":0,\"length1\":145,\"diffs\":[[1,\"// Programá tu micro:bit acá\\n\"]]}]},{\"type\":\"edited\",\"filename\":\"pxt.json\",\"patch\":[{\"start1\":140,\"length1\":147,\"diffs\":[[1,\"        \\\"pxt-tm-microbit-link\\\": \\\"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\\\"\\n\"]]},{\"start1\":550,\"length1\":2,\"diffs\":[[1,\"}\"]]}]}]}],\"snapshots\":[{\"timestamp\":1787350690216,\"editorVersion\":\"7.1.47\",\"text\":{\"main.blocks\":\"<xml xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n  <variables></variables>\\n</xml>\",\"main.ts\":\"// Programá tu micro:bit acá\\n\",\"tm-classes.ts\":\"enum TMClase {\\n    //% block=\\\"Clase 1\\\"\\n    Clase_1 = 0,\\n    //% block=\\\"Clase 2\\\"\\n    Clase_2 = 1\\n}\\nnamespace iaMachine {\\n    export const _tmClaseNombres = [\\\"Clase 1\\\", \\\"Clase 2\\\"];\\n    //% blockId=tm_clase_picker\\n    //% block=\\\"$clase\\\"\\n    //% blockHidden=true\\n    //% shim=TD_ID\\n    export function tmClasePicker(clase: TMClase): number {\\n        return clase;\\n    }\\n}\\n\",\"README.md\":\" \",\"pxt.json\":\"{\\n    \\\"name\\\": \\\"Img\\\",\\n    \\\"description\\\": \\\"Proyecto con ML - micro:bit\\\",\\n    \\\"dependencies\\\": {\\n        \\\"core\\\": \\\"*\\\",\\n        \\\"bluetooth\\\": \\\"*\\\",\\n        \\\"pxt-tm-microbit-link\\\": \\\"github:snan-microbit/pxt-tm-microbit-link-v2#3a8e11f4f045ef8dcd81103c5fa7a33698a2c0da\\\"\\n    },\\n    \\\"files\\\": [\\n        \\\"main.blocks\\\",\\n        \\\"main.ts\\\",\\n        \\\"tm-classes.ts\\\",\\n        \\\"README.md\\\"\\n    ],\\n    \\\"yotta\\\": {\\n        \\\"config\\\": {\\n            \\\"microbit-dal\\\": {\\n                \\\"bluetooth\\\": {\\n                    \\\"open\\\": 1\\n                }\\n            }\\n        }\\n    }\\n}\"}}],\"shares\":[],\"lastSaveTime\":1787350701109}"
+      }
+    },
+    "localModel": {
+      "source": "local",
+      "storageKey": "ml-image-local-1787332631870",
+      "classNames": [
+        "Clase 1",
+        "Clase 2"
+      ],
+      "featureExtractor": "mobilenet_v1_0.25_224",
+      "trainedAt": "2026-08-21T22:10:01.105Z"
+    },
+    "classNames": [
+      "Clase 1",
+      "Clase 2"
+    ]
+  }
+]

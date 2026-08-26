@@ -6,7 +6,7 @@
 // - Everything else (app shell: HTML/CSS/JS): network-first, so app updates
 //   are picked up as soon as they're deployed.
 
-const CACHE_NAME = 'ml-microbit-v8.0';
+const CACHE_NAME = 'ml-microbit-v8.1';
 const urlsToCache = [
   './',
   './index.html',
@@ -18,6 +18,7 @@ const urlsToCache = [
   // App scripts
   './js/app.js',
   './js/mediapipe-loader.js',
+  './js/project-schema.js',
   './js/project-store.js',
   './js/trainer-config.js',
   './js/webcam.js',
