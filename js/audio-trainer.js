@@ -212,20 +212,44 @@ function renameClass(index, newName) {
 }
 
 /**
- * Clear examples for a specific class name from the transfer recognizer.
- * speech-commands 0.5.4 clearExamples() clears ALL examples — so this
- * resets all class counts to 0. The UI reflects this via getClasses().
+ * Clears the samples of ONE class.
+ *
+ * speech-commands' clearExamples() takes no arguments and wipes the whole
+ * transfer dataset: the library keeps a single word -> examples map and its
+ * public clearing API operates on all of it. Calling it here is what used to
+ * delete every class's samples — a per-class button wired to a global method.
+ *
+ * removeExample(uid) does support per-example removal, and deleteSample() in
+ * this file already uses it, so clearing one class is that in a loop.
+ *
+ * The uids are collected BEFORE removing any: getExamples() reflects the live
+ * dataset, and removing while iterating shifts the indices underneath.
  */
 function clearSamples(index) {
+    const name = classNames[index];
+    if (!name) return;
+
+    let uids = [];
     try {
-        if (typeof transfer.clearExamples === 'function') {
-            transfer.clearExamples();
-        }
+        // getExamples() throws when the word has no examples collected at all,
+        // which is a legitimate state (a class the user never recorded into).
+        uids = (transfer.getExamples(name) || []).map(e => e.uid);
     } catch (e) {
-        console.warn('clearExamples error:', e);
+        classThumbs[name] = [];
+        return;
     }
-    // clearExamples clears ALL examples across all classes
-    classThumbs = {};
+
+    for (const uid of uids) {
+        try {
+            transfer.removeExample(uid);
+        } catch (e) {
+            // Un fallo suelto no puede abortar el resto: dejaría la clase a
+            // medio limpiar y los thumbs desalineados con el dataset real.
+            console.warn('removeExample error:', e);
+        }
+    }
+
+    classThumbs[name] = [];
 }
 
 function getSamples(classIndex) {
@@ -306,46 +330,6 @@ async function recordSample(classIndex) {
 
 function getIsRecording() {
     return isRecording;
-}
-
-/**
- * Record samples continuously for a class while isRecording is true.
- */
-async function startContinuousRecording(classIndex) {
-    isRecording = true;
-    const name = classNames[classIndex];
-
-    const wasListening = isListening();
-    if (wasListening) stopListening();
-
-    while (isRecording) {
-        try {
-            await transfer.collectExample(name);
-            const examples = transfer.getExamples(name);
-            const last = examples[examples.length - 1];
-            const thumb = generateSpectrogramThumb(
-                last.example.spectrogram.data,
-                last.example.spectrogram.frameSize
-            );
-            if (!classThumbs[name]) classThumbs[name] = [];
-            classThumbs[name].push(thumb);
-        } catch (e) {
-            console.warn('Recording error:', e);
-            break;
-        }
-    }
-
-    if (wasListening && predictionCallback) {
-        try {
-            await startListening(predictionCallback);
-        } catch (e) {
-            console.warn('Could not resume listening:', e);
-        }
-    }
-}
-
-function stopContinuousRecording() {
-    isRecording = false;
 }
 
 // ============================================
@@ -746,7 +730,6 @@ function isTrained() {
 function dispose() {
     stopListening();
     stopVisualizer();
-    stopContinuousRecording();
 
     releaseTransfer();
     classNames = [];
@@ -767,7 +750,7 @@ export {
     addClass, removeClass, renameClass,
     clearSamples, getClasses, getClassNames, getTotalClasses,
     getSamples, deleteSample,
-    recordSample, startContinuousRecording, stopContinuousRecording,
+    recordSample,
     getIsRecording,
     train,
     startListening, stopListening, isListening,
