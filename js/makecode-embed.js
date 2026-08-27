@@ -9,7 +9,7 @@
 
     import { deriveEnumIdentifiers, stripUnsafeChars } from './class-name.js';
 
-    const MAKECODE_URL = "https://makecode.microbit.org/v7.1.47";
+    const MAKECODE_URL = "https://makecode.microbit.org/v9.0.12";
 
     // Origen del iframe, usado como targetOrigin en postMessage y para
     // validar los mensajes entrantes. Debe coincidir con MAKECODE_URL.
